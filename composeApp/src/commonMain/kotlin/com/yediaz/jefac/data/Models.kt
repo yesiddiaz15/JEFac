@@ -11,12 +11,12 @@ data class Business(
 
 @Serializable
 data class AppUser(
-    val id: String?= null,
-    val business_id: String?= null,
-    val email: String?= null,
-    val name: String?= null,
-    val role: String?= null,
-    val created_at: String? = null
+    val id: String,
+    val business_id: String,
+    val email: String,
+    val name: String,
+    val role: String,
+    val created_at: String
 )
 
 @Serializable
