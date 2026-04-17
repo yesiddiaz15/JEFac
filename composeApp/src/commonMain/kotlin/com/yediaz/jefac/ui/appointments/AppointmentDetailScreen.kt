@@ -257,10 +257,41 @@ private fun AppointmentInfoCard(uiState: AppointmentDetailUiState) {
         border = BorderStroke(0.5.dp, AppColors.Border)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            InfoRow(
-                label = "Servicio",
-                value = uiState.serviceNames.joinToString(" + ")
-            )
+            if (uiState.serviceNames.size > 1) {
+                // Múltiples servicios: label arriba, chips abajo
+                Text(
+                    text = "Servicio",
+                    fontSize = 12.sp,
+                    color = AppColors.TextMuted
+                )
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    uiState.serviceNames.forEach { name ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(AppColors.BgSecondary)
+                                .border(0.5.dp, AppColors.Border, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = name,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AppColors.TextDark
+                            )
+                        }
+                    }
+                }
+            } else {
+                InfoRow(
+                    label = "Servicio",
+                    value = uiState.serviceNames.firstOrNull() ?: ""
+                )
+            }
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = AppColors.Border,
