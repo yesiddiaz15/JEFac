@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -25,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,6 +36,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yediaz.jefac.data.AppUser
+import com.yediaz.jefac.ui.AppColors
+import com.yediaz.jefac.ui.appointments.AppointmentDetailScreen
+import com.yediaz.jefac.ui.appointments.AppointmentsScreen
+import com.yediaz.jefac.ui.appointments.NewAppointmentScreen
 import com.yediaz.jefac.ui.home.HomeScreen
 
 data class NavItem(
@@ -41,11 +47,33 @@ data class NavItem(
     val icon: ImageVector
 )
 
-val primaryColor = Color(0xFFD4756A)
-
+// ─────────────────────────────────────────────
+// ADMIN — acceso total
+// ─────────────────────────────────────────────
 @Composable
 fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showNewAppointment by remember { mutableStateOf(false) }
+    var detailAppointmentId by remember { mutableStateOf<String?>(null) }
+
+    // Nueva cita aparece encima de todo, sin bottom nav
+    if (showNewAppointment) {
+        NewAppointmentScreen(
+            user = user,
+            onNavigateBack = { showNewAppointment = false },
+            onAppointmentCreated = { showNewAppointment = false }
+        )
+        return
+    }
+
+    detailAppointmentId?.let { id ->
+        AppointmentDetailScreen(
+            user = user,
+            appointmentId = id,
+            onNavigateBack = { detailAppointmentId = null }
+        )
+        return
+    }
 
     val tabs = listOf(
         NavItem("Inicio", Icons.Filled.Home),
@@ -55,18 +83,30 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     )
 
     Scaffold(
+        containerColor = AppColors.BgMain,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 0.dp
+            ) {
                 tabs.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        icon = {
+                            Icon(
+                                item.icon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
                         label = { Text(item.label, fontSize = 10.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = primaryColor,
-                            selectedTextColor = primaryColor,
-                            indicatorColor = Color(0xFFFDF0EB)
+                            selectedIconColor = AppColors.Primary,
+                            selectedTextColor = AppColors.Primary,
+                            unselectedIconColor = AppColors.TextMuted,
+                            unselectedTextColor = AppColors.TextMuted,
+                            indicatorColor = Color(0xFFF5EDD6)
                         )
                     )
                 }
@@ -75,8 +115,18 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> HomeScreen(user = user)
-                1 -> PlaceholderScreen("Servicios & Citas", user, onSignOut)
+                0 -> HomeScreen(
+                    user = user,
+                    onNavigateToNewAppointment = { showNewAppointment = true },
+                    onNavigateToNewOrder = { /* módulo cafetería - próximo paso */ }
+                )
+
+                1 -> AppointmentsScreen(
+                    user = user,
+                    onNavigateToNewAppointment = { showNewAppointment = true },
+                    onNavigateToDetail = { id -> detailAppointmentId = id }
+                )
+
                 2 -> PlaceholderScreen("Cafetería", user, onSignOut)
                 3 -> PlaceholderScreen("Finanzas", user, onSignOut)
             }
@@ -84,6 +134,9 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     }
 }
 
+// ─────────────────────────────────────────────
+// PROFESSIONAL — solo su agenda
+// ─────────────────────────────────────────────
 @Composable
 fun ProfessionalNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -94,8 +147,12 @@ fun ProfessionalNavigation(user: AppUser, onSignOut: () -> Unit) {
     )
 
     Scaffold(
+        containerColor = AppColors.BgMain,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 0.dp
+            ) {
                 tabs.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = selectedTab == index,
@@ -103,9 +160,11 @@ fun ProfessionalNavigation(user: AppUser, onSignOut: () -> Unit) {
                         icon = { Icon(item.icon, contentDescription = item.label) },
                         label = { Text(item.label, fontSize = 10.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = primaryColor,
-                            selectedTextColor = primaryColor,
-                            indicatorColor = Color(0xFFFDF0EB)
+                            selectedIconColor = AppColors.Primary,
+                            selectedTextColor = AppColors.Primary,
+                            unselectedIconColor = AppColors.TextMuted,
+                            unselectedTextColor = AppColors.TextMuted,
+                            indicatorColor = Color(0xFFF5EDD6)
                         )
                     )
                 }
@@ -114,13 +173,25 @@ fun ProfessionalNavigation(user: AppUser, onSignOut: () -> Unit) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> PlaceholderScreen("Mis citas de hoy", user, onSignOut)
-                1 -> PlaceholderScreen("Mi agenda", user, onSignOut)
+                0 -> AppointmentsScreen(
+                    user = user,
+                    onNavigateToNewAppointment = { },
+                    onNavigateToDetail = { }
+                )
+
+                1 -> AppointmentsScreen(
+                    user = user,
+                    onNavigateToNewAppointment = { },
+                    onNavigateToDetail = { }
+                )
             }
         }
     }
 }
 
+// ─────────────────────────────────────────────
+// CAFE — mesas y pedidos
+// ─────────────────────────────────────────────
 @Composable
 fun CafeNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -131,8 +202,12 @@ fun CafeNavigation(user: AppUser, onSignOut: () -> Unit) {
     )
 
     Scaffold(
+        containerColor = AppColors.BgMain,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 0.dp
+            ) {
                 tabs.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = selectedTab == index,
@@ -140,9 +215,11 @@ fun CafeNavigation(user: AppUser, onSignOut: () -> Unit) {
                         icon = { Icon(item.icon, contentDescription = item.label) },
                         label = { Text(item.label, fontSize = 10.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = primaryColor,
-                            selectedTextColor = primaryColor,
-                            indicatorColor = Color(0xFFFDF0EB)
+                            selectedIconColor = AppColors.Primary,
+                            selectedTextColor = AppColors.Primary,
+                            unselectedIconColor = AppColors.TextMuted,
+                            unselectedTextColor = AppColors.TextMuted,
+                            indicatorColor = Color(0xFFF5EDD6)
                         )
                     )
                 }
@@ -158,8 +235,11 @@ fun CafeNavigation(user: AppUser, onSignOut: () -> Unit) {
     }
 }
 
+// ─────────────────────────────────────────────
+// Placeholder temporal — se reemplaza módulo a módulo
+// ─────────────────────────────────────────────
 @Composable
-private fun PlaceholderScreen(
+fun PlaceholderScreen(
     title: String,
     user: AppUser,
     onSignOut: () -> Unit
@@ -171,28 +251,16 @@ private fun PlaceholderScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = title,
-            fontSize = 22.sp,
-            color = Color(0xFF3D2E27)
-        )
+        Text(text = title, fontSize = 22.sp, color = AppColors.TextDark)
         Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Hola, ${user.name}",
-            fontSize = 16.sp,
-            color = Color(0xFFB09080)
-        )
-        Text(
-            text = "Rol: ${user.role}",
-            fontSize = 14.sp,
-            color = Color(0xFFB09080)
-        )
+        Text(text = "Hola, ${user.name}", fontSize = 16.sp, color = AppColors.TextMuted)
+        Text(text = "Rol: ${user.role}", fontSize = 14.sp, color = AppColors.TextMuted)
         Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = onSignOut,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4756A))
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
         ) {
-            Text("Cerrar sesión")
+            Text("Cerrar sesión", color = Color.White)
         }
     }
 }

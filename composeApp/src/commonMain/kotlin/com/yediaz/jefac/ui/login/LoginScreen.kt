@@ -22,12 +22,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yediaz.jefac.data.AppUser
+import com.yediaz.jefac.ui.AppColors
 import com.yediaz.jefac.viewmodel.AuthViewModel
 import kotlinx.coroutines.flow.collectLatest
 
@@ -37,7 +38,6 @@ fun LoginScreen(
     viewModel: AuthViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val primaryColor = Color(0xFFD4756A)
 
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
@@ -50,7 +50,7 @@ fun LoginScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFFDF8F5)
+        color = AppColors.BgMain
     ) {
         Column(
             modifier = Modifier
@@ -59,37 +59,51 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Logo / nombre
             Text(
-                text = "Bienvenida",
+                text = "Vibra Bonito",
                 fontSize = 28.sp,
-                color = Color(0xFF3D2E27)
+                fontWeight = FontWeight.Medium,
+                color = AppColors.TextDark
+            )
+            Text(
+                text = "Nails & Coffee",
+                fontSize = 14.sp,
+                color = AppColors.Primary,
+                modifier = Modifier.padding(top = 2.dp)
             )
             Text(
                 text = "Inicia sesión para continuar",
-                fontSize = 14.sp,
-                color = Color(0xFFB09080),
-                modifier = Modifier.padding(top = 4.dp, bottom = 40.dp)
+                fontSize = 13.sp,
+                color = AppColors.TextMuted,
+                modifier = Modifier.padding(top = 6.dp, bottom = 40.dp)
             )
 
+            // Email
             OutlinedTextField(
                 value = uiState.email,
                 onValueChange = { viewModel.handleIntent(AuthIntent.EmailChanged(it)) },
                 label = { Text("Correo electrónico") },
                 isError = uiState.emailError != null,
                 supportingText = {
-                    uiState.emailError?.let { Text(it, color = Color(0xFFC07060)) }
+                    uiState.emailError?.let {
+                        Text(it, color = AppColors.Expense)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = primaryColor,
-                    focusedLabelColor = primaryColor
+                    focusedBorderColor = AppColors.Primary,
+                    unfocusedBorderColor = AppColors.Border,
+                    focusedLabelColor = AppColors.Primary,
+                    unfocusedLabelColor = AppColors.TextMuted
                 )
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Contraseña
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = { viewModel.handleIntent(AuthIntent.PasswordChanged(it)) },
@@ -97,36 +111,45 @@ fun LoginScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 isError = uiState.passwordError != null,
                 supportingText = {
-                    uiState.passwordError?.let { Text(it, color = Color(0xFFC07060)) }
+                    uiState.passwordError?.let {
+                        Text(it, color = AppColors.Expense)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = primaryColor,
-                    focusedLabelColor = primaryColor
+                    focusedBorderColor = AppColors.Primary,
+                    unfocusedBorderColor = AppColors.Border,
+                    focusedLabelColor = AppColors.Primary,
+                    unfocusedLabelColor = AppColors.TextMuted
                 )
             )
 
+            // Error general
             uiState.generalError?.let {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = it, color = Color(0xFFC07060), fontSize = 13.sp)
+                Text(text = it, color = AppColors.Expense, fontSize = 13.sp)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Botón
             Button(
                 onClick = { viewModel.handleIntent(AuthIntent.SignIn) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.Primary,
+                    contentColor = AppColors.OnPrimary
+                ),
                 enabled = !uiState.isLoading
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = AppColors.OnPrimary,
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.dp
                     )
