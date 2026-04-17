@@ -3,8 +3,8 @@ package com.yediaz.jefac.ui.login
 import com.yediaz.jefac.data.AppUser
 
 data class AuthUiState(
-    val email: String = "",
-    val password: String = "",
+    val email: String = "yesiddiaz15@gmail.com",
+    val password: String = "Facturacion2026.",
     val isLoading: Boolean = false,
     val emailError: String? = null,
     val passwordError: String? = null,
