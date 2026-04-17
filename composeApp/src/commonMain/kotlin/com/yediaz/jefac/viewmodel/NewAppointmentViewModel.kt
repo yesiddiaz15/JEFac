@@ -42,7 +42,7 @@ class NewAppointmentViewModel(
         when (intent) {
             is NewAppointmentIntent.LoadInitialData -> loadInitialData()
             is NewAppointmentIntent.SelectClient -> onClientSelected(intent.client)
-            is NewAppointmentIntent.SelectService -> onServiceSelected(intent.service)
+            is NewAppointmentIntent.ToggleService -> onServiceToggled(intent.service)
             is NewAppointmentIntent.SelectProfessional -> onProfessionalSelected(intent.professional)
             is NewAppointmentIntent.ToggleProfessional -> toggleProfessional()
             is NewAppointmentIntent.SetDate -> _uiState.update {
@@ -66,6 +66,70 @@ class NewAppointmentViewModel(
             is NewAppointmentIntent.SelectDrink -> _uiState.update { it.copy(selectedDrink = intent.drink) }
             is NewAppointmentIntent.ConfirmAppointment -> confirmAppointment()
             is NewAppointmentIntent.ClearErrors -> clearErrors()
+            is NewAppointmentIntent.ShowCreateClient -> _uiState.update { it.copy(showCreateClient = true) }
+            is NewAppointmentIntent.HideCreateClient -> _uiState.update {
+                it.copy(
+                    showCreateClient = false,
+                    newClientName = "",
+                    newClientPhone = "",
+                    newClientError = null
+                )
+            }
+
+            is NewAppointmentIntent.NewClientNameChanged -> _uiState.update { it.copy(newClientName = intent.value) }
+            is NewAppointmentIntent.NewClientPhoneChanged -> _uiState.update {
+                it.copy(
+                    newClientPhone = intent.value
+                )
+            }
+
+            is NewAppointmentIntent.ConfirmCreateClient -> createClient()
+        }
+    }
+
+    private fun createClient() {
+        val state = _uiState.value
+
+        if (state.newClientName.isBlank()) {
+            _uiState.update { it.copy(newClientError = "Ingresa el nombre") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCreatingClient = true) }
+
+            val newClient = Client(
+                id = "",  // Supabase genera el UUID
+                business_id = businessId,
+                name = state.newClientName.trim(),
+                phone = state.newClientPhone.trim().ifBlank { null }
+            )
+
+            when (val result = repository.createClient(newClient)) {
+                is Result.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isCreatingClient = false,
+                            showCreateClient = false,
+                            newClientName = "",
+                            newClientPhone = "",
+                            selectedClient = result.data,
+                            clientError = null,
+                            // Agregar el nuevo cliente a la lista
+                            availableClients = it.availableClients + result.data
+                        )
+                    }
+                }
+
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isCreatingClient = false,
+                            newClientError = result.message
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -106,8 +170,14 @@ class NewAppointmentViewModel(
         _uiState.update { it.copy(selectedClient = client, clientError = null) }
     }
 
-    private fun onServiceSelected(service: Service) {
-        _uiState.update { it.copy(selectedService = service, serviceError = null) }
+    private fun onServiceToggled(service: Service) {
+        val current = _uiState.value.selectedServices
+        val updated = if (current.any { it.id == service.id }) {
+            current.filter { it.id != service.id }  // deseleccionar
+        } else {
+            current + service  // seleccionar
+        }
+        _uiState.update { it.copy(selectedServices = updated) }
         recalculatePricing()
     }
 
@@ -151,20 +221,28 @@ class NewAppointmentViewModel(
     // ─────────────────────────────────────────
     private fun recalculatePricing() {
         val state = _uiState.value
-        val basePrice = state.selectedService?.base_price ?: return
+        if (state.selectedServices.isEmpty()) return
+
+        // Total base = suma de todos los servicios
+        val totalBase = state.selectedServices.sumOf { it.base_price }
 
         val commissionPct = if (state.hasProfessional) {
             state.selectedProfessional?.default_commission ?: 0.0
         } else 0.0
 
         val result = pricing.calculate(
-            basePrice = basePrice,
+            basePrice = totalBase,
             discountType = state.discountType,
             discountValue = state.discountValue,
             commissionPct = commissionPct
         )
 
-        _uiState.update { it.copy(pricing = result) }
+        _uiState.update {
+            it.copy(
+                totalBasePrice = totalBase,
+                pricing = result
+            )
+        }
     }
 
     // ─────────────────────────────────────────
@@ -173,13 +251,12 @@ class NewAppointmentViewModel(
     private fun confirmAppointment() {
         val state = _uiState.value
 
-        // Validaciones
         if (state.selectedClient == null) {
-            _uiState.update { it.copy(clientError = "Selecciona una clienta") }
+            _uiState.update { it.copy(clientError = "Selecciona un cliente") }
             return
         }
-        if (state.selectedService == null) {
-            _uiState.update { it.copy(serviceError = "Selecciona un servicio") }
+        if (state.selectedServices.isEmpty()) {
+            _uiState.update { it.copy(serviceError = "Selecciona al menos un servicio") }
             return
         }
         if (state.scheduledDate.isBlank()) {
@@ -192,17 +269,19 @@ class NewAppointmentViewModel(
         }
 
         val pricingResult = state.pricing ?: pricing.calculate(
-            basePrice = state.selectedService.base_price
+            basePrice = state.totalBasePrice
         )
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, generalError = null) }
 
+            // Usamos el primer servicio como service_id principal
+            // y guardamos todos en appointment_services
             val appointment = Appointment(
-                id = "",  // Supabase genera el UUID
+                id = "",
                 business_id = businessId,
                 client_id = state.selectedClient.id,
-                service_id = state.selectedService.id,
+                service_id = state.selectedServices.first().id,
                 professional_id = state.selectedProfessional?.id,
                 scheduled_at = "${state.scheduledDate}T${state.scheduledTime}:00.000Z",
                 status = "pending",
@@ -219,7 +298,10 @@ class NewAppointmentViewModel(
                 notes = state.notes.ifBlank { null }
             )
 
-            when (val result = repository.createAppointment(appointment)) {
+            when (val result = repository.createAppointment(
+                appointment = appointment,
+                services = state.selectedServices
+            )) {
                 is Result.Success -> {
                     _uiState.update { it.copy(isSaving = false) }
                     _effects.send(NewAppointmentEffect.AppointmentCreated)

@@ -47,7 +47,7 @@ class AppointmentRepository {
                 }.data
 
             val appointments = json.decodeFromString<List<AppointmentRow>>(response)
-            val items = appointments.map { it.toUi(businessId) }
+            val items = resolveAppointmentNames(appointments, businessId)
             Result.Success(items)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al cargar citas")
@@ -78,12 +78,94 @@ class AppointmentRepository {
                 }.data
 
             val appointments = json.decodeFromString<List<AppointmentRow>>(response)
-            val items = appointments.map { it.toUi(businessId) }
+            val items = resolveAppointmentNames(appointments, businessId)
             Result.Success(items)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al cargar citas de la semana")
         }
     }
+
+    private suspend fun resolveAppointmentNames(
+        appointments: List<AppointmentRow>,
+        businessId: String
+    ): List<AppointmentItemUi> {
+        // Cargar listas una sola vez en lugar de una consulta por cita
+        val clients = getClients(businessId).let {
+            if (it is Result.Success) it.data else emptyList()
+        }
+        val services = getServices(businessId).let {
+            if (it is Result.Success) it.data else emptyList()
+        }
+        val professionals = getProfessionals(businessId).let {
+            if (it is Result.Success) it.data else emptyList()
+        }
+
+        return appointments.map { appt ->
+            AppointmentItemUi(
+                id = appt.id,
+                clientName = clients.find { it.id == appt.client_id }?.name ?: "Cliente",
+                serviceName = services.find { it.id == appt.service_id }?.name ?: "Servicio",
+                professionalName = appt.professional_id?.let { proId ->
+                    professionals.find { it.id == proId }?.name
+                } ?: "Negocio",
+                scheduledAt = appt.scheduled_at,
+                status = appt.status,
+                finalPrice = appt.final_price,
+                hasCourtesyDrink = appt.has_courtesy_drink
+            )
+        }
+    }
+
+    suspend fun getAllAppointments(
+        businessId: String
+    ): Result<List<AppointmentItemUi>> {
+        return try {
+            val response = supabase.postgrest["appointments"]
+                .select {
+                    filter { eq("business_id", businessId) }
+                    order("scheduled_at", Order.DESCENDING)
+                }.data
+
+            val appointments = json.decodeFromString<List<AppointmentRow>>(response)
+            val items = resolveAppointmentNames(appointments, businessId)
+            Result.Success(items)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Error al cargar citas")
+        }
+    }
+
+    suspend fun getAppointmentServices(
+        appointmentId: String,
+        businessId: String
+    ): Result<List<Service>> {
+        return try {
+            val response = supabase.postgrest["appointment_services"]
+                .select {
+                    filter { eq("appointment_id", appointmentId) }
+                }.data
+
+            val apptServices = json.decodeFromString<List<AppointmentServiceRow>>(response)
+            val allServices = getServices(businessId).let {
+                if (it is Result.Success) it.data else emptyList()
+            }
+
+            val services = apptServices.mapNotNull { apptSvc ->
+                allServices.find { it.id == apptSvc.service_id }
+            }
+
+            Result.Success(services)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Error al cargar servicios de la cita")
+        }
+    }
+
+    @Serializable
+    private data class AppointmentServiceRow(
+        val id: String,
+        val appointment_id: String,
+        val service_id: String,
+        val base_price: Double
+    )
 
     // ─────────────────────────────────────────
     // Obtener una cita por ID
@@ -107,20 +189,59 @@ class AppointmentRepository {
     // ─────────────────────────────────────────
     // Crear nueva cita
     // ─────────────────────────────────────────
-    suspend fun createAppointment(appointment: Appointment): Result<Appointment> {
+    suspend fun createAppointment(
+        appointment: Appointment,
+        services: List<Service>
+    ): Result<Appointment> {
         return try {
+            // Crear la cita principal
             val response = supabase.postgrest["appointments"]
-                .insert(appointment)
-                .data
+                .insert(
+                    buildJsonObject {
+                        put("business_id", appointment.business_id)
+                        put("client_id", appointment.client_id)
+                        put("service_id", appointment.service_id)
+                        if (appointment.professional_id != null)
+                            put("professional_id", appointment.professional_id)
+                        put("scheduled_at", appointment.scheduled_at)
+                        put("status", appointment.status)
+                        put("base_price", appointment.base_price)
+                        if (appointment.discount_type != null)
+                            put("discount_type", appointment.discount_type)
+                        put("discount_value", appointment.discount_value)
+                        put("final_price", appointment.final_price)
+                        put("commission_pct", appointment.commission_pct)
+                        put("professional_earn", appointment.professional_earn)
+                        put("business_earn", appointment.business_earn)
+                        put("has_courtesy_drink", appointment.has_courtesy_drink)
+                        if (appointment.courtesy_drink_id != null)
+                            put("courtesy_drink_id", appointment.courtesy_drink_id)
+                        put("courtesy_cost", appointment.courtesy_cost)
+                        if (appointment.notes != null)
+                            put("notes", appointment.notes)
+                    }
+                ) {
+                    select()
+                }.data
 
             val created = json.decodeFromString<List<Appointment>>(response)
             val result = created.firstOrNull()
                 ?: return Result.Error("Error al crear la cita")
 
-            // Registrar la transacción de ingreso
-            registerAppointmentTransaction(result)
+            // Guardar los servicios en la tabla intermedia
+            services.forEach { service ->
+                supabase.postgrest["appointment_services"].insert(
+                    buildJsonObject {
+                        put("appointment_id", result.id)
+                        put("service_id", service.id)
+                        put("base_price", service.base_price)
+                    }
+                )
+            }
 
+            registerAppointmentTransaction(result)
             Result.Success(result)
+
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al crear la cita")
         }
@@ -197,7 +318,15 @@ class AppointmentRepository {
     suspend fun createClient(client: Client): Result<Client> {
         return try {
             val response = supabase.postgrest["clients"]
-                .insert(client)
+                .insert(
+                    buildJsonObject {
+                        put("business_id", client.business_id)
+                        put("name", client.name)
+                        if (client.phone != null) put("phone", client.phone)
+                    }
+                ) {
+                    select() // ← esto le dice a Supabase que devuelva el registro creado
+                }
                 .data
 
             val created = json.decodeFromString<List<Client>>(response)

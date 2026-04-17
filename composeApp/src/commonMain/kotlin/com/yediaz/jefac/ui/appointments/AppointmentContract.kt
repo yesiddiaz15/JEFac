@@ -52,7 +52,8 @@ data class NewAppointmentUiState(
 
     // Datos del formulario
     val selectedClient: Client? = null,
-    val selectedService: Service? = null,
+    val selectedServices: List<Service> = emptyList(),
+    val totalBasePrice: Double = 0.0,
     val selectedProfessional: Professional? = null,
     val hasProfessional: Boolean = true,
     val scheduledDate: String = "",
@@ -79,7 +80,12 @@ data class NewAppointmentUiState(
     val serviceError: String? = null,
     val dateError: String? = null,
     val timeError: String? = null,
-    val generalError: String? = null
+    val generalError: String? = null,
+    val showCreateClient: Boolean = false,
+    val newClientName: String = "",
+    val newClientPhone: String = "",
+    val newClientError: String? = null,
+    val isCreatingClient: Boolean = false
 )
 
 sealed class NewAppointmentIntent {
@@ -88,7 +94,7 @@ sealed class NewAppointmentIntent {
 
     // Selecciones del formulario
     data class SelectClient(val client: Client) : NewAppointmentIntent()
-    data class SelectService(val service: Service) : NewAppointmentIntent()
+    data class ToggleService(val service: Service) : NewAppointmentIntent()
     data class SelectProfessional(val professional: Professional) : NewAppointmentIntent()
     object ToggleProfessional : NewAppointmentIntent()
     data class SetDate(val date: String) : NewAppointmentIntent()
@@ -104,6 +110,11 @@ sealed class NewAppointmentIntent {
     // Confirmar
     object ConfirmAppointment : NewAppointmentIntent()
     object ClearErrors : NewAppointmentIntent()
+    object ShowCreateClient : NewAppointmentIntent()
+    object HideCreateClient : NewAppointmentIntent()
+    data class NewClientNameChanged(val value: String) : NewAppointmentIntent()
+    data class NewClientPhoneChanged(val value: String) : NewAppointmentIntent()
+    object ConfirmCreateClient : NewAppointmentIntent()
 }
 
 sealed class NewAppointmentEffect {
@@ -129,7 +140,8 @@ data class AppointmentDetailUiState(
     val selectedDrink: Product? = null,
     val availableDrinks: List<Product> = emptyList(),
     val notes: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val serviceNames: List<String> = emptyList()
 )
 
 sealed class AppointmentDetailIntent {

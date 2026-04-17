@@ -48,8 +48,8 @@ class AppointmentListViewModel(
 
             val result = when (_uiState.value.selectedFilter) {
                 AppointmentFilter.TODAY -> repository.getTodayAppointments(businessId)
-                AppointmentFilter.WEEK -> repository.getWeekAppointments(businessId)
-                AppointmentFilter.ALL -> repository.getWeekAppointments(businessId)
+                AppointmentFilter.WEEK  -> repository.getWeekAppointments(businessId)
+                AppointmentFilter.ALL   -> repository.getAllAppointments(businessId)
             }
 
             _uiState.update { state ->

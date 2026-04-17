@@ -22,13 +22,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +41,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,6 +70,8 @@ import com.yediaz.jefac.domain.PricingResult
 import com.yediaz.jefac.ui.AppColors
 import com.yediaz.jefac.viewmodel.NewAppointmentViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 @Composable
 fun NewAppointmentScreen(
@@ -160,16 +170,38 @@ fun NewAppointmentScreen(
                     clients = uiState.availableClients,
                     selected = uiState.selectedClient,
                     error = uiState.clientError,
-                    onSelect = { viewModel.handleIntent(NewAppointmentIntent.SelectClient(it)) }
+                    showCreateClient = uiState.showCreateClient,
+                    newClientName = uiState.newClientName,
+                    newClientPhone = uiState.newClientPhone,
+                    newClientError = uiState.newClientError,
+                    isCreatingClient = uiState.isCreatingClient,
+                    onSelect = { viewModel.handleIntent(NewAppointmentIntent.SelectClient(it)) },
+                    onShowCreate = { viewModel.handleIntent(NewAppointmentIntent.ShowCreateClient) },
+                    onHideCreate = { viewModel.handleIntent(NewAppointmentIntent.HideCreateClient) },
+                    onNameChanged = {
+                        viewModel.handleIntent(
+                            NewAppointmentIntent.NewClientNameChanged(
+                                it
+                            )
+                        )
+                    },
+                    onPhoneChanged = {
+                        viewModel.handleIntent(
+                            NewAppointmentIntent.NewClientPhoneChanged(
+                                it
+                            )
+                        )
+                    },
+                    onConfirmCreate = { viewModel.handleIntent(NewAppointmentIntent.ConfirmCreateClient) }
                 )
             }
             item {
                 FieldLabel("Servicio")
                 ServiceGrid(
                     services = uiState.availableServices,
-                    selected = uiState.selectedService,
+                    selectedServices = uiState.selectedServices,
                     error = uiState.serviceError,
-                    onSelect = { viewModel.handleIntent(NewAppointmentIntent.SelectService(it)) }
+                    onToggle = { viewModel.handleIntent(NewAppointmentIntent.ToggleService(it)) }
                 )
             }
             item {
@@ -185,40 +217,18 @@ fun NewAppointmentScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
                         FieldLabel("Fecha")
-                        OutlinedTextField(
+                        DatePickerField(
                             value = uiState.scheduledDate,
-                            onValueChange = { viewModel.handleIntent(NewAppointmentIntent.SetDate(it)) },
-                            placeholder = {
-                                Text(
-                                    "2026-04-17",
-                                    color = AppColors.TextLight,
-                                    fontSize = 13.sp
-                                )
-                            },
                             isError = uiState.dateError != null,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = fieldColors(),
-                            singleLine = true
+                            onSelect = { viewModel.handleIntent(NewAppointmentIntent.SetDate(it)) }
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         FieldLabel("Hora")
-                        OutlinedTextField(
+                        TimePickerField(
                             value = uiState.scheduledTime,
-                            onValueChange = { viewModel.handleIntent(NewAppointmentIntent.SetTime(it)) },
-                            placeholder = {
-                                Text(
-                                    "10:00",
-                                    color = AppColors.TextLight,
-                                    fontSize = 13.sp
-                                )
-                            },
                             isError = uiState.timeError != null,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = fieldColors(),
-                            singleLine = true
+                            onSelect = { viewModel.handleIntent(NewAppointmentIntent.SetTime(it)) }
                         )
                     }
                 }
@@ -291,44 +301,278 @@ private fun FieldLabel(text: String) {
     )
 }
 
+// ─────────────────────────────────────────────
+// Reemplaza el componente ClientSelector completo
+// en NewAppointmentScreen.kt por este
+// ─────────────────────────────────────────────
+
 @Composable
 private fun ClientSelector(
     clients: List<Client>,
     selected: Client?,
     error: String?,
-    onSelect: (Client) -> Unit
+    showCreateClient: Boolean,
+    newClientName: String,
+    newClientPhone: String,
+    newClientError: String?,
+    isCreatingClient: Boolean,
+    onSelect: (Client) -> Unit,
+    onShowCreate: () -> Unit,
+    onHideCreate: () -> Unit,
+    onNameChanged: (String) -> Unit,
+    onPhoneChanged: (String) -> Unit,
+    onConfirmCreate: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        OutlinedTextField(
-            value = selected?.name ?: "",
-            onValueChange = { },
-            placeholder = {
-                Text(
-                    "Buscar clienta...",
-                    color = AppColors.TextLight,
-                    fontSize = 13.sp
-                )
-            },
-            readOnly = true,
-            isError = error != null,
-            supportingText = { error?.let { Text(it, color = AppColors.Expense) } },
-            modifier = Modifier.fillMaxWidth().clickable { expanded = true },
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredClients = remember(searchQuery, clients) {
+        if (searchQuery.isBlank()) clients
+        else clients.filter {
+            it.name.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    // Campo de búsqueda principal
+    OutlinedTextField(
+        value = selected?.name ?: searchQuery,
+        onValueChange = {
+            searchQuery = it
+            expanded = true
+        },
+        placeholder = {
+            Text(
+                "Buscar o crear cliente...",
+                color = AppColors.TextLight,
+                fontSize = 13.sp
+            )
+        },
+        isError = error != null,
+        supportingText = { error?.let { Text(it, color = AppColors.Expense) } },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true },
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AppColors.Primary,
+            unfocusedBorderColor = AppColors.Border,
+            focusedLabelColor = AppColors.Primary
+        ),
+        singleLine = true
+    )
+
+    // Dropdown con resultados
+    if (expanded && !showCreateClient) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = fieldColors()
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (clients.isEmpty()) {
-                DropdownMenuItem(
-                    text = { Text("No hay clientes registrados", color = AppColors.TextMuted) },
-                    onClick = { expanded = false }
-                )
+            colors = CardDefaults.cardColors(containerColor = AppColors.BgCard),
+            border = BorderStroke(0.5.dp, AppColors.Border)
+        ) {
+            Column {
+                if (filteredClients.isEmpty()) {
+                    // No hay resultados — mostrar opción de crear
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                expanded = false
+                                onShowCreate()
+                            }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.BgSecondary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("+", fontSize = 16.sp, color = AppColors.Primary)
+                        }
+                        Column {
+                            Text(
+                                text = "Crear \"$searchQuery\"",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AppColors.Primary
+                            )
+                            Text(
+                                text = "Nuevo cliente",
+                                fontSize = 11.sp,
+                                color = AppColors.TextMuted
+                            )
+                        }
+                    }
+                } else {
+                    filteredClients.take(5).forEach { client ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSelect(client)
+                                    searchQuery = ""
+                                    expanded = false
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(AppColors.BgSecondary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = client.name.take(1).uppercase(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = AppColors.PrimaryDark
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = client.name,
+                                    fontSize = 13.sp,
+                                    color = AppColors.TextDark
+                                )
+                                client.phone?.let {
+                                    Text(text = it, fontSize = 11.sp, color = AppColors.TextMuted)
+                                }
+                            }
+                        }
+                        if (client != filteredClients.take(5).last()) {
+                            HorizontalDivider(color = AppColors.Border, thickness = 0.5.dp)
+                        }
+                    }
+
+                    // Opción de crear al final si hay resultados pero quieren crear uno nuevo
+                    HorizontalDivider(color = AppColors.Border, thickness = 0.5.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                expanded = false
+                                onShowCreate()
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.BgSecondary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("+", fontSize = 14.sp, color = AppColors.Primary)
+                        }
+                        Text(
+                            text = "Crear nuevo cliente",
+                            fontSize = 13.sp,
+                            color = AppColors.Primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
-            clients.forEach { client ->
-                DropdownMenuItem(
-                    text = { Text(client.name, color = AppColors.TextDark) },
-                    onClick = { onSelect(client); expanded = false }
+        }
+    }
+
+    // Mini formulario de creación inline
+    if (showCreateClient) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = AppColors.BgCard),
+            border = BorderStroke(1.5.dp, AppColors.Primary)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Nuevo cliente",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AppColors.TextDark
+                    )
+                    TextButton(onClick = onHideCreate) {
+                        Text("Cancelar", color = AppColors.TextMuted, fontSize = 12.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Nombre
+                OutlinedTextField(
+                    value = newClientName,
+                    onValueChange = onNameChanged,
+                    label = { Text("Nombre *") },
+                    isError = newClientError != null,
+                    supportingText = {
+                        newClientError?.let { Text(it, color = AppColors.Expense) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.Primary,
+                        unfocusedBorderColor = AppColors.Border,
+                        focusedLabelColor = AppColors.Primary
+                    )
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Teléfono (opcional)
+                OutlinedTextField(
+                    value = newClientPhone,
+                    onValueChange = onPhoneChanged,
+                    label = { Text("Teléfono (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.Primary,
+                        unfocusedBorderColor = AppColors.Border,
+                        focusedLabelColor = AppColors.Primary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onConfirmCreate,
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.Primary,
+                        contentColor = AppColors.OnPrimary
+                    ),
+                    enabled = !isCreatingClient && newClientName.isNotBlank()
+                ) {
+                    if (isCreatingClient) {
+                        CircularProgressIndicator(
+                            color = AppColors.OnPrimary,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Guardar cliente", fontSize = 14.sp)
+                    }
+                }
             }
         }
     }
@@ -337,9 +581,9 @@ private fun ClientSelector(
 @Composable
 private fun ServiceGrid(
     services: List<Service>,
-    selected: Service?,
+    selectedServices: List<Service>,
     error: String?,
-    onSelect: (Service) -> Unit
+    onToggle: (Service) -> Unit
 ) {
     if (services.isEmpty()) {
         Text("No hay servicios configurados", fontSize = 13.sp, color = AppColors.TextMuted)
@@ -351,9 +595,9 @@ private fun ServiceGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             rowServices.forEach { service ->
-                val isSelected = service.id == selected?.id
+                val isSelected = selectedServices.any { it.id == service.id }
                 Card(
-                    modifier = Modifier.weight(1f).clickable { onSelect(service) },
+                    modifier = Modifier.weight(1f).clickable { onToggle(service) },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) AppColors.BgSecondary else AppColors.BgCard
@@ -364,14 +608,32 @@ private fun ServiceGrid(
                     )
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = when (service.category) {
-                                "nail_spa" -> "💅"
-                                "access_bars" -> "✨"
-                                else -> "·"
-                            },
-                            fontSize = 18.sp
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                text = when (service.category) {
+                                    "nail_spa" -> "💅"
+                                    "access_bars" -> "✨"
+                                    else -> "·"
+                                },
+                                fontSize = 18.sp
+                            )
+                            // Checkmark cuando está seleccionado
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(AppColors.Primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("✓", fontSize = 10.sp, color = AppColors.OnPrimary)
+                                }
+                            }
+                        }
                         Text(
                             text = service.name,
                             fontSize = 13.sp,
@@ -690,7 +952,7 @@ private fun CourtesyDrinkSection(
                 Text(
                     text = if (hasCourtesyDrink && selectedDrink != null)
                         "Costo interno: ${formatCurrency(selectedDrink.price)} · Sin cobro"
-                    else "Sin costo para la clienta",
+                    else "Sin costo para el cliente",
                     fontSize = 11.sp,
                     color = if (hasCourtesyDrink) AppColors.CourtesyGreen else AppColors.TextMuted
                 )
@@ -758,6 +1020,167 @@ private fun CourtesyDrinkSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DatePickerField(
+    value: String,
+    isError: Boolean,
+    onSelect: (String) -> Unit
+) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = { },
+        placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
+        readOnly = true,
+        isError = isError,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showPicker = true },
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AppColors.Primary,
+            unfocusedBorderColor = AppColors.Border,
+            focusedLabelColor = AppColors.Primary
+        ),
+        singleLine = true
+    )
+
+    if (showPicker) {
+        val datePickerState = rememberDatePickerState()
+
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            // Usando kotlinx-datetime en lugar de java.time
+                            val instant = Instant.fromEpochMilliseconds(millis)
+                            val date = instant.toLocalDateTime(kotlinx.datetime.TimeZone.UTC).date
+                            onSelect(date.toString())
+                        }
+                        showPicker = false
+                    }
+                ) {
+                    Text("Confirmar", color = AppColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text("Cancelar", color = AppColors.TextMuted)
+                }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = AppColors.BgCard,
+                titleContentColor = AppColors.TextDark,
+                headlineContentColor = AppColors.TextDark,
+                weekdayContentColor = AppColors.TextMuted,
+                dayContentColor = AppColors.TextDark,
+                selectedDayContainerColor = AppColors.Primary,
+                selectedDayContentColor = AppColors.OnPrimary,
+                todayDateBorderColor = AppColors.Primary,
+                todayContentColor = AppColors.Primary
+            )
+        ) {
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = AppColors.BgCard,
+                    selectedDayContainerColor = AppColors.Primary,
+                    selectedDayContentColor = AppColors.OnPrimary,
+                    todayDateBorderColor = AppColors.Primary,
+                    todayContentColor = AppColors.Primary
+                )
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerField(
+    value: String,
+    isError: Boolean,
+    onSelect: (String) -> Unit
+) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = { },
+        placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
+        readOnly = true,
+        isError = isError,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showPicker = true },
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AppColors.Primary,
+            unfocusedBorderColor = AppColors.Border,
+            focusedLabelColor = AppColors.Primary
+        ),
+        singleLine = true
+    )
+
+    if (showPicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = 9,
+            initialMinute = 0,
+            is24Hour = false
+        )
+
+        AlertDialog(
+            onDismissRequest = { showPicker = false },
+            containerColor = AppColors.BgCard,
+            title = {
+                Text(
+                    text = "Seleccionar hora",
+                    color = AppColors.TextDark,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            },
+            text = {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = AppColors.BgSecondary,
+                        clockDialSelectedContentColor = AppColors.OnPrimary,
+                        clockDialUnselectedContentColor = AppColors.TextDark,
+                        selectorColor = AppColors.Primary,
+                        containerColor = AppColors.BgCard,
+                        periodSelectorBorderColor = AppColors.Border,
+                        timeSelectorSelectedContainerColor = AppColors.Primary,
+                        timeSelectorUnselectedContainerColor = AppColors.BgSecondary,
+                        timeSelectorSelectedContentColor = AppColors.OnPrimary,
+                        timeSelectorUnselectedContentColor = AppColors.TextDark
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Formatear como HH:mm
+                        val hour = timePickerState.hour.toString().padStart(2, '0')
+                        val minute = timePickerState.minute.toString().padStart(2, '0')
+                        onSelect("$hour:$minute")
+                        showPicker = false
+                    }
+                ) {
+                    Text("Confirmar", color = AppColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text("Cancelar", color = AppColors.TextMuted)
+                }
+            }
+        )
     }
 }
 

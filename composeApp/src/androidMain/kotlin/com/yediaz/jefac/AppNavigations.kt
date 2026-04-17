@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yediaz.jefac.data.AppUser
 import com.yediaz.jefac.ui.AppColors
+import com.yediaz.jefac.ui.appointments.AppointmentDetailScreen
 import com.yediaz.jefac.ui.appointments.AppointmentsScreen
 import com.yediaz.jefac.ui.appointments.NewAppointmentScreen
 import com.yediaz.jefac.ui.home.HomeScreen
@@ -53,6 +54,7 @@ data class NavItem(
 fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewAppointment by remember { mutableStateOf(false) }
+    var detailAppointmentId by remember { mutableStateOf<String?>(null) }
 
     // Nueva cita aparece encima de todo, sin bottom nav
     if (showNewAppointment) {
@@ -60,6 +62,15 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
             user = user,
             onNavigateBack = { showNewAppointment = false },
             onAppointmentCreated = { showNewAppointment = false }
+        )
+        return
+    }
+
+    detailAppointmentId?.let { id ->
+        AppointmentDetailScreen(
+            user = user,
+            appointmentId = id,
+            onNavigateBack = { detailAppointmentId = null }
         )
         return
     }
@@ -113,7 +124,7 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                 1 -> AppointmentsScreen(
                     user = user,
                     onNavigateToNewAppointment = { showNewAppointment = true },
-                    onNavigateToDetail = { /* detalle cita - próximo paso */ }
+                    onNavigateToDetail = { id -> detailAppointmentId = id }
                 )
 
                 2 -> PlaceholderScreen("Cafetería", user, onSignOut)

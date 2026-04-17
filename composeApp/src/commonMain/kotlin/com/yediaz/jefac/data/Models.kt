@@ -72,6 +72,14 @@ data class Appointment(
 )
 
 @Serializable
+data class AppointmentService(
+    val id: String = "",
+    val appointment_id: String,
+    val service_id: String,
+    val base_price: Double
+)
+
+@Serializable
 data class Product(
     val id: String,
     val business_id: String,
