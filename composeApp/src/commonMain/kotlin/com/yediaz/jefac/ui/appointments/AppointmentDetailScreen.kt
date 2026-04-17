@@ -145,7 +145,7 @@ fun AppointmentDetailScreen(
                 uiState.pricing?.let { pricing ->
                     item {
                         SectionLabel("Desglose de pago")
-                        PricingCard(pricing)
+                        PricingCard(pricing = pricing, deposit = uiState.deposit)
                     }
                 }
 
@@ -334,7 +334,9 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun PricingCard(pricing: PricingResult) {
+private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0) {
+    val balance = pricing.finalPrice - deposit
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -375,6 +377,24 @@ private fun PricingCard(pricing: PricingResult) {
                 formatCurrency(pricing.businessEarn),
                 AppColors.BusinessEarn
             )
+            if (deposit > 0) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = AppColors.Border,
+                    thickness = 0.5.dp
+                )
+                PricingRow(
+                    "Abono recibido",
+                    formatCurrency(deposit),
+                    AppColors.CourtesyGreen
+                )
+                PricingRow(
+                    label = "Saldo pendiente",
+                    value = formatCurrency(balance.coerceAtLeast(0.0)),
+                    valueColor = if (balance <= 0) AppColors.CourtesyGreen else AppColors.PrimaryDark,
+                    isBold = true
+                )
+            }
         }
     }
 }

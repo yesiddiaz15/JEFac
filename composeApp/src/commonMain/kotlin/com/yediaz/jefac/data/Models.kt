@@ -68,7 +68,8 @@ data class Appointment(
     val has_courtesy_drink: Boolean = false,
     val courtesy_drink_id: String? = null,
     val courtesy_cost: Double = 0.0,
-    val notes: String? = null
+    val notes: String? = null,
+    val deposit: Double = 0.0
 )
 
 @Serializable

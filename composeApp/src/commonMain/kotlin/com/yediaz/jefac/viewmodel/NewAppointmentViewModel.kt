@@ -61,6 +61,7 @@ class NewAppointmentViewModel(
 
             is NewAppointmentIntent.SetDiscountType -> onDiscountTypeChanged(intent.type)
             is NewAppointmentIntent.SetDiscountValue -> onDiscountValueChanged(intent.value)
+            is NewAppointmentIntent.SetDeposit -> _uiState.update { it.copy(depositAmount = intent.amount) }
             is NewAppointmentIntent.SetNotes -> _uiState.update { it.copy(notes = intent.notes) }
             is NewAppointmentIntent.ToggleCourtesyDrink -> toggleCourtesyDrink()
             is NewAppointmentIntent.SelectDrink -> _uiState.update { it.copy(selectedDrink = intent.drink) }
@@ -295,7 +296,8 @@ class NewAppointmentViewModel(
                 has_courtesy_drink = state.hasCourtesyDrink,
                 courtesy_drink_id = state.selectedDrink?.id,
                 courtesy_cost = state.selectedDrink?.price ?: 0.0,
-                notes = state.notes.ifBlank { null }
+                notes = state.notes.ifBlank { null },
+                deposit = state.depositAmount
             )
 
             when (val result = repository.createAppointment(

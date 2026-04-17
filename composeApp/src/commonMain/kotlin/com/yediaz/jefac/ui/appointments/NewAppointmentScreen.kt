@@ -252,7 +252,11 @@ fun NewAppointmentScreen(
             uiState.pricing?.let { pricing ->
                 item {
                     FieldLabel("Desglose de pago")
-                    PricingBreakdown(pricing = pricing)
+                    PricingBreakdown(
+                        pricing = pricing,
+                        depositAmount = uiState.depositAmount,
+                        onDepositChange = { viewModel.handleIntent(NewAppointmentIntent.SetDeposit(it)) }
+                    )
                 }
             }
             item { HorizontalDivider(color = AppColors.Border, thickness = 0.5.dp) }
@@ -836,7 +840,13 @@ private fun DiscountSection(
 }
 
 @Composable
-private fun PricingBreakdown(pricing: PricingResult) {
+private fun PricingBreakdown(
+    pricing: PricingResult,
+    depositAmount: Double,
+    onDepositChange: (Double) -> Unit
+) {
+    val balance = pricing.finalPrice - depositAmount
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -883,6 +893,48 @@ private fun PricingBreakdown(pricing: PricingResult) {
                     fontSize = 10.sp,
                     color = AppColors.TextMuted,
                     modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            // ── Abono ──────────────────────────────
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 10.dp),
+                color = AppColors.Border,
+                thickness = 0.5.dp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Abono recibido", fontSize = 12.sp, color = AppColors.TextMuted)
+                OutlinedTextField(
+                    value = if (depositAmount == 0.0) "" else depositAmount.toLong().toString(),
+                    onValueChange = { onDepositChange(it.toDoubleOrNull() ?: 0.0) },
+                    placeholder = { Text("0", fontSize = 13.sp, color = AppColors.TextLight) },
+                    prefix = { Text("$", fontSize = 13.sp, color = AppColors.TextMuted) },
+                    modifier = Modifier.width(130.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.Primary,
+                        unfocusedBorderColor = AppColors.Border
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = AppColors.TextDark
+                    )
+                )
+            }
+            if (depositAmount > 0) {
+                Spacer(modifier = Modifier.height(6.dp))
+                PricingRow(
+                    label = "Saldo pendiente",
+                    value = formatCurrency(balance.coerceAtLeast(0.0)),
+                    valueColor = if (balance <= 0) AppColors.CourtesyGreen else AppColors.PrimaryDark,
+                    isBold = true
                 )
             }
         }

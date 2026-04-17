@@ -221,6 +221,7 @@ class AppointmentRepository {
                         put("courtesy_cost", appointment.courtesy_cost)
                         if (appointment.notes != null)
                             put("notes", appointment.notes)
+                        put("deposit", appointment.deposit)
                     }
                 ) {
                     select()

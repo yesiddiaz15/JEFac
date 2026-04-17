@@ -66,6 +66,7 @@ data class NewAppointmentUiState(
     val scheduledTime: String = "",
     val discountType: String? = null,       // "percentage" | "fixed" | null
     val discountValue: Double = 0.0,
+    val depositAmount: Double = 0.0,
     val notes: String = "",
 
     // Bebida cortesía
@@ -107,6 +108,7 @@ sealed class NewAppointmentIntent {
     data class SetTime(val time: String) : NewAppointmentIntent()
     data class SetDiscountType(val type: String?) : NewAppointmentIntent()
     data class SetDiscountValue(val value: Double) : NewAppointmentIntent()
+    data class SetDeposit(val amount: Double) : NewAppointmentIntent()
     data class SetNotes(val notes: String) : NewAppointmentIntent()
 
     // Bebida cortesía
@@ -142,6 +144,7 @@ data class AppointmentDetailUiState(
     val scheduledAt: String = "",
     val status: String = "",
     val pricing: PricingResult? = null,
+    val deposit: Double = 0.0,
     val hasCourtesyDrink: Boolean = false,
     val selectedDrink: Product? = null,
     val availableDrinks: List<Product> = emptyList(),

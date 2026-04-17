@@ -95,6 +95,7 @@ class AppointmentDetailViewModel(
                             scheduledAt = appt.scheduled_at,
                             status = appt.status,
                             pricing = pricingResult,
+                            deposit = appt.deposit,
                             hasCourtesyDrink = appt.has_courtesy_drink,
                             selectedDrink = selectedDrink,
                             availableDrinks = when (drinks) {
