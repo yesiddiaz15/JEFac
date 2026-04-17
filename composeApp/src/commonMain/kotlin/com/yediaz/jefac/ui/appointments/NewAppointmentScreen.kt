@@ -1031,23 +1031,28 @@ private fun DatePickerField(
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = { },
-        placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
-        readOnly = true,
-        isError = isError,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showPicker = true },
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AppColors.Primary,
-            unfocusedBorderColor = AppColors.Border,
-            focusedLabelColor = AppColors.Primary
-        ),
-        singleLine = true
-    )
+            .clickable { showPicker = true }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
+            enabled = false,
+            isError = isError,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledBorderColor = if (isError) AppColors.Expense else AppColors.Border,
+                disabledTextColor = AppColors.TextDark,
+                disabledPlaceholderColor = AppColors.TextLight,
+                disabledContainerColor = AppColors.BgCard
+            ),
+            singleLine = true
+        )
+    }
 
     if (showPicker) {
         val datePickerState = rememberDatePickerState()
@@ -1109,23 +1114,28 @@ private fun TimePickerField(
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = { },
-        placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
-        readOnly = true,
-        isError = isError,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showPicker = true },
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AppColors.Primary,
-            unfocusedBorderColor = AppColors.Border,
-            focusedLabelColor = AppColors.Primary
-        ),
-        singleLine = true
-    )
+            .clickable { showPicker = true }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            placeholder = { Text("Seleccionar", color = AppColors.TextLight, fontSize = 13.sp) },
+            enabled = false,
+            isError = isError,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledBorderColor = if (isError) AppColors.Expense else AppColors.Border,
+                disabledTextColor = AppColors.TextDark,
+                disabledPlaceholderColor = AppColors.TextLight,
+                disabledContainerColor = AppColors.BgCard
+            ),
+            singleLine = true
+        )
+    }
 
     if (showPicker) {
         val timePickerState = rememberTimePickerState(

@@ -62,6 +62,7 @@ fun AppointmentDetailScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val viewModel: AppointmentDetailViewModel = viewModel(
+        key = appointmentId,
         factory = AppointmentDetailViewModel.Factory(appointmentId)
     )
     val uiState by viewModel.uiState.collectAsState()

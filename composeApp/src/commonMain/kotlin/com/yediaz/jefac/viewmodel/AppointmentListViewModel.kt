@@ -16,6 +16,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import kotlin.reflect.KClass
 
 class AppointmentListViewModel(
@@ -30,6 +37,8 @@ class AppointmentListViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
+        val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+        _uiState.update { it.copy(calendarYear = today.year, calendarMonth = today.monthNumber) }
         handleIntent(AppointmentListIntent.LoadAppointments)
     }
 
@@ -39,38 +48,53 @@ class AppointmentListViewModel(
             is AppointmentListIntent.FilterChanged -> onFilterChanged(intent.filter)
             is AppointmentListIntent.OpenAppointment -> openAppointment(intent.id)
             is AppointmentListIntent.NavigateToNewAppointment -> navigateToNew()
+            is AppointmentListIntent.SelectCalendarDay -> onCalendarDaySelected(intent.date)
+            is AppointmentListIntent.PrevMonth -> navigateMonth(-1)
+            is AppointmentListIntent.NextMonth -> navigateMonth(1)
         }
     }
 
     private fun loadAppointments() {
+        val currentFilter = _uiState.value.selectedFilter
+        val currentDate = _uiState.value.selectedDate
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val result = when (_uiState.value.selectedFilter) {
-                AppointmentFilter.TODAY -> repository.getTodayAppointments(businessId)
-                AppointmentFilter.WEEK  -> repository.getWeekAppointments(businessId)
-                AppointmentFilter.ALL   -> repository.getAllAppointments(businessId)
+            val result = when {
+                currentDate != null -> repository.getAppointmentsForDate(currentDate, businessId)
+                currentFilter == AppointmentFilter.TODAY -> repository.getTodayAppointments(businessId)
+                currentFilter == AppointmentFilter.WEEK -> repository.getWeekAppointments(businessId)
+                else -> repository.getAllAppointments(businessId)
             }
 
             _uiState.update { state ->
                 when (result) {
-                    is Result.Success -> state.copy(
-                        isLoading = false,
-                        appointments = result.data
-                    )
-
-                    is Result.Error -> state.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    is Result.Success -> state.copy(isLoading = false, appointments = result.data)
+                    is Result.Error -> state.copy(isLoading = false, error = result.message)
                 }
             }
         }
     }
 
     private fun onFilterChanged(filter: AppointmentFilter) {
-        _uiState.update { it.copy(selectedFilter = filter) }
+        _uiState.update { it.copy(selectedFilter = filter, selectedDate = null) }
         loadAppointments()
+    }
+
+    private fun onCalendarDaySelected(date: String) {
+        _uiState.update { it.copy(selectedDate = date) }
+        loadAppointments()
+    }
+
+    private fun navigateMonth(delta: Int) {
+        val state = _uiState.value
+        val currentFirst = LocalDate(state.calendarYear, state.calendarMonth, 1)
+        val newFirst = if (delta > 0) {
+            currentFirst.plus(1, DateTimeUnit.MONTH)
+        } else {
+            currentFirst.minus(1, DateTimeUnit.MONTH)
+        }
+        _uiState.update { it.copy(calendarYear = newFirst.year, calendarMonth = newFirst.monthNumber) }
     }
 
     private fun openAppointment(id: String) {

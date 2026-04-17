@@ -85,6 +85,32 @@ class AppointmentRepository {
         }
     }
 
+    suspend fun getAppointmentsForDate(
+        date: String,
+        businessId: String
+    ): Result<List<AppointmentItemUi>> {
+        return try {
+            val start = "${date}T00:00:00.000Z"
+            val end   = "${date}T23:59:59.999Z"
+
+            val response = supabase.postgrest["appointments"]
+                .select {
+                    filter {
+                        eq("business_id", businessId)
+                        gte("scheduled_at", start)
+                        lte("scheduled_at", end)
+                    }
+                    order("scheduled_at", Order.ASCENDING)
+                }.data
+
+            val appointments = json.decodeFromString<List<AppointmentRow>>(response)
+            val items = resolveAppointmentNames(appointments, businessId)
+            Result.Success(items)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Error al cargar citas")
+        }
+    }
+
     private suspend fun resolveAppointmentNames(
         appointments: List<AppointmentRow>,
         businessId: String

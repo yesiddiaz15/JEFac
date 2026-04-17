@@ -51,6 +51,13 @@ import com.yediaz.jefac.data.AppUser
 import com.yediaz.jefac.ui.AppColors
 import com.yediaz.jefac.viewmodel.AppointmentListViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.time.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 
 @Composable
 fun AppointmentsScreen(
@@ -89,8 +96,8 @@ fun AppointmentsScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            item { AppointmentsHeader() }
-            item { MiniCalendar() }
+            item { AppointmentsHeader(uiState) }
+            item { MiniCalendar(uiState, viewModel) }
             item { FilterRow(uiState.selectedFilter, viewModel) }
             item {
                 Text(
@@ -148,7 +155,8 @@ fun AppointmentsScreen(
 }
 
 @Composable
-private fun AppointmentsHeader() {
+private fun AppointmentsHeader(uiState: AppointmentListUiState) {
+    val monthName = monthName(uiState.calendarMonth)
     Column(
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 8.dp)
     ) {
@@ -159,7 +167,7 @@ private fun AppointmentsHeader() {
             color = AppColors.TextDark
         )
         Text(
-            text = "Abril 2026",
+            text = "$monthName ${uiState.calendarYear}",
             fontSize = 12.sp,
             color = AppColors.TextMuted,
             modifier = Modifier.padding(top = 2.dp)
@@ -168,16 +176,42 @@ private fun AppointmentsHeader() {
 }
 
 @Composable
-private fun MiniCalendar() {
+private fun MiniCalendar(
+    uiState: AppointmentListUiState,
+    viewModel: AppointmentListViewModel
+) {
+    val year = uiState.calendarYear.takeIf { it > 0 } ?: return
+    val month = uiState.calendarMonth.takeIf { it > 0 } ?: return
+
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val firstOfMonth = LocalDate(year, month, 1)
+    val daysInMonth = LocalDate(year, month, 1).plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).dayOfMonth
+    // ordinal: Mon=0..Sun=6 → convert to Sun=0..Sat=6: (ordinal + 1) % 7
+    val startOffset = (firstOfMonth.dayOfWeek.ordinal + 1) % 7
+
     val dayNames = listOf("D", "L", "M", "X", "J", "V", "S")
-    val days = (1..30).toList()
-    val todayDay = 17
-    val daysWithAppointments = listOf(17, 18, 19, 21, 22, 23)
+
+    // Derive days with appointments from current loaded list
+    val daysWithAppt = uiState.appointments
+        .mapNotNull { appt ->
+            try {
+                val apptDate = appt.scheduledAt.substring(0, 10)
+                val apptLocalDate = LocalDate.parse(apptDate)
+                if (apptLocalDate.year == year && apptLocalDate.monthNumber == month) {
+                    apptLocalDate.dayOfMonth
+                } else null
+            } catch (e: Exception) { null }
+        }.toSet()
+
+    val selectedDay: Int? = uiState.selectedDate?.let {
+        try {
+            val d = LocalDate.parse(it)
+            if (d.year == year && d.monthNumber == month) d.dayOfMonth else null
+        } catch (e: Exception) { null }
+    }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.BgCard),
         border = BorderStroke(0.5.dp, AppColors.Border)
@@ -188,25 +222,17 @@ private fun MiniCalendar() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { }) {
-                    Icon(
-                        Icons.Filled.KeyboardArrowLeft,
-                        contentDescription = "Mes anterior",
-                        tint = AppColors.TextMuted
-                    )
+                IconButton(onClick = { viewModel.handleIntent(AppointmentListIntent.PrevMonth) }) {
+                    Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Mes anterior", tint = AppColors.TextMuted)
                 }
                 Text(
-                    text = "Abril 2026",
+                    text = "${monthName(month)} $year",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = AppColors.TextDark
                 )
-                IconButton(onClick = { }) {
-                    Icon(
-                        Icons.Filled.KeyboardArrowRight,
-                        contentDescription = "Mes siguiente",
-                        tint = AppColors.TextMuted
-                    )
+                IconButton(onClick = { viewModel.handleIntent(AppointmentListIntent.NextMonth) }) {
+                    Icon(Icons.Filled.KeyboardArrowRight, contentDescription = "Mes siguiente", tint = AppColors.TextMuted)
                 }
             }
 
@@ -224,17 +250,16 @@ private fun MiniCalendar() {
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            val startOffset = 3
-            val rows = (startOffset + days.size + 6) / 7
-
+            val rows = (startOffset + daysInMonth + 6) / 7
             for (row in 0 until rows) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     for (col in 0..6) {
                         val cellIndex = row * 7 + col
                         val dayNumber = cellIndex - startOffset + 1
-                        val isValidDay = dayNumber in 1..30
-                        val isToday = dayNumber == todayDay
-                        val hasAppt = dayNumber in daysWithAppointments
+                        val isValidDay = dayNumber in 1..daysInMonth
+                        val isToday = isValidDay && today.year == year && today.monthNumber == month && dayNumber == today.dayOfMonth
+                        val isSelected = isValidDay && selectedDay == dayNumber
+                        val hasAppt = dayNumber in daysWithAppt
 
                         Box(
                             modifier = Modifier
@@ -242,8 +267,17 @@ private fun MiniCalendar() {
                                 .aspectRatio(1f)
                                 .padding(2.dp)
                                 .clip(CircleShape)
-                                .background(if (isToday) AppColors.Primary else Color.Transparent)
-                                .clickable(enabled = isValidDay) { },
+                                .background(
+                                    when {
+                                        isSelected -> AppColors.Primary
+                                        isToday -> AppColors.BgSecondary
+                                        else -> Color.Transparent
+                                    }
+                                )
+                                .clickable(enabled = isValidDay) {
+                                    val date = "${year}-${month.toString().padStart(2, '0')}-${dayNumber.toString().padStart(2, '0')}"
+                                    viewModel.handleIntent(AppointmentListIntent.SelectCalendarDay(date))
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             if (isValidDay) {
@@ -251,7 +285,11 @@ private fun MiniCalendar() {
                                     Text(
                                         text = dayNumber.toString(),
                                         fontSize = 12.sp,
-                                        color = if (isToday) AppColors.OnPrimary else AppColors.TextDark,
+                                        color = when {
+                                            isSelected -> AppColors.OnPrimary
+                                            isToday -> AppColors.Primary
+                                            else -> AppColors.TextDark
+                                        },
                                         textAlign = TextAlign.Center
                                     )
                                     if (hasAppt) {
@@ -260,7 +298,7 @@ private fun MiniCalendar() {
                                                 .size(4.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (isToday) AppColors.OnPrimary.copy(alpha = 0.7f)
+                                                    if (isSelected) AppColors.OnPrimary.copy(alpha = 0.7f)
                                                     else AppColors.PrimaryLight
                                                 )
                                         )
@@ -403,4 +441,11 @@ private fun statusColor(status: String): Color = when (status) {
     "pending" -> AppColors.StatusPending
     "completed" -> AppColors.StatusCompleted
     else -> AppColors.Border
+}
+
+private fun monthName(month: Int): String = when (month) {
+    1 -> "Enero"; 2 -> "Febrero"; 3 -> "Marzo"; 4 -> "Abril"
+    5 -> "Mayo"; 6 -> "Junio"; 7 -> "Julio"; 8 -> "Agosto"
+    9 -> "Septiembre"; 10 -> "Octubre"; 11 -> "Noviembre"; 12 -> "Diciembre"
+    else -> ""
 }
