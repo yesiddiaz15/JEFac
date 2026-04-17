@@ -11,10 +11,11 @@ import com.yediaz.jefac.ui.appointments.AppointmentItemUi
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -45,7 +46,9 @@ class AppointmentRepository {
         return try {
             val today = Clock.System.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault()).date
-            val weekStart = today.minus(6, DateTimeUnit.DAY)
+            // Lunes de la semana actual (ordinal: Mon=0 … Sun=6)
+            val weekStart = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
+            val weekEnd   = weekStart.plus(6, DateTimeUnit.DAY)
 
             val allResult = getAllAppointments(businessId)
             if (allResult is Result.Error) return allResult
@@ -53,7 +56,7 @@ class AppointmentRepository {
             val filtered = (allResult as Result.Success).data
                 .filter { appt ->
                     val d = appt.scheduledAt.substring(0, 10)
-                    d >= weekStart.toString() && d <= today.toString()
+                    d >= weekStart.toString() && d <= weekEnd.toString()
                 }
                 .sortedBy { it.scheduledAt }
 
