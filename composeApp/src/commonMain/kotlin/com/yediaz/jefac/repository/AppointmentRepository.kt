@@ -14,6 +14,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -30,28 +31,9 @@ class AppointmentRepository {
     suspend fun getTodayAppointments(
         businessId: String
     ): Result<List<AppointmentItemUi>> {
-        return try {
-            val today = Clock.System.now()
-                .toLocalDateTime(TimeZone.currentSystemDefault()).date
-            val start = "${today}T00:00:00.000Z"
-            val end = "${today}T23:59:59.999Z"
-
-            val response = supabase.postgrest["appointments"]
-                .select {
-                    filter {
-                        eq("business_id", businessId)
-                        gte("scheduled_at", start)
-                        lte("scheduled_at", end)
-                    }
-                    order("scheduled_at", Order.ASCENDING)
-                }.data
-
-            val appointments = json.decodeFromString<List<AppointmentRow>>(response)
-            val items = resolveAppointmentNames(appointments, businessId)
-            Result.Success(items)
-        } catch (e: Exception) {
-            Result.Error(e.message ?: "Error al cargar citas")
-        }
+        val today = Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault()).date
+        return getAppointmentsForDate(today.toString(), businessId)
     }
 
     // ─────────────────────────────────────────
@@ -64,48 +46,39 @@ class AppointmentRepository {
             val today = Clock.System.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault()).date
             val weekStart = today.minus(6, DateTimeUnit.DAY)
-            val start = "${weekStart}T00:00:00.000Z"
-            val end = "${today}T23:59:59.999Z"
 
-            val response = supabase.postgrest["appointments"]
-                .select {
-                    filter {
-                        eq("business_id", businessId)
-                        gte("scheduled_at", start)
-                        lte("scheduled_at", end)
-                    }
-                    order("scheduled_at", Order.ASCENDING)
-                }.data
+            val allResult = getAllAppointments(businessId)
+            if (allResult is Result.Error) return allResult
 
-            val appointments = json.decodeFromString<List<AppointmentRow>>(response)
-            val items = resolveAppointmentNames(appointments, businessId)
-            Result.Success(items)
+            val filtered = (allResult as Result.Success).data
+                .filter { appt ->
+                    val d = appt.scheduledAt.substring(0, 10)
+                    d >= weekStart.toString() && d <= today.toString()
+                }
+                .sortedBy { it.scheduledAt }
+
+            Result.Success(filtered)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al cargar citas de la semana")
         }
     }
 
+    // ─────────────────────────────────────────
+    // Obtener citas de una fecha específica
+    // ─────────────────────────────────────────
     suspend fun getAppointmentsForDate(
-        date: String,
+        date: String,   // "2026-04-17"
         businessId: String
     ): Result<List<AppointmentItemUi>> {
         return try {
-            val start = "${date}T00:00:00.000Z"
-            val end   = "${date}T23:59:59.999Z"
+            val allResult = getAllAppointments(businessId)
+            if (allResult is Result.Error) return allResult
 
-            val response = supabase.postgrest["appointments"]
-                .select {
-                    filter {
-                        eq("business_id", businessId)
-                        gte("scheduled_at", start)
-                        lte("scheduled_at", end)
-                    }
-                    order("scheduled_at", Order.ASCENDING)
-                }.data
+            val filtered = (allResult as Result.Success).data
+                .filter { appt -> appt.scheduledAt.substring(0, 10) == date }
+                .sortedBy { it.scheduledAt }
 
-            val appointments = json.decodeFromString<List<AppointmentRow>>(response)
-            val items = resolveAppointmentNames(appointments, businessId)
-            Result.Success(items)
+            Result.Success(filtered)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al cargar citas")
         }
