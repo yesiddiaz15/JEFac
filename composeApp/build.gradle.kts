@@ -51,6 +51,7 @@ kotlin {
             implementation(libs.auth.kt)
             implementation(libs.realtime.kt)
             implementation(libs.material.icons.extended)
+            implementation(libs.kotlinx.datetime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

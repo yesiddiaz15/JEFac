@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yediaz.jefac.data.AppUser
+import com.yediaz.jefac.ui.home.HomeScreen
 
 data class NavItem(
     val label: String,
@@ -74,7 +75,7 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> PlaceholderScreen("Home Dashboard", user, onSignOut)
+                0 -> HomeScreen(user = user)
                 1 -> PlaceholderScreen("Servicios & Citas", user, onSignOut)
                 2 -> PlaceholderScreen("Cafetería", user, onSignOut)
                 3 -> PlaceholderScreen("Finanzas", user, onSignOut)
