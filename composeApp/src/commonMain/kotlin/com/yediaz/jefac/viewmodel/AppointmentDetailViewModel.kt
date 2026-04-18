@@ -8,6 +8,7 @@ import com.yediaz.jefac.data.Product
 import com.yediaz.jefac.data.Result
 import com.yediaz.jefac.domain.PricingCalculator
 import com.yediaz.jefac.repository.AppointmentRepository
+import com.yediaz.jefac.repository.CafeRepository
 import com.yediaz.jefac.ui.appointments.AppointmentDetailEffect
 import com.yediaz.jefac.ui.appointments.AppointmentDetailIntent
 import com.yediaz.jefac.ui.appointments.AppointmentDetailUiState
@@ -22,6 +23,7 @@ import kotlin.reflect.KClass
 class AppointmentDetailViewModel(
     private val appointmentId: String,
     private val repository: AppointmentRepository = AppointmentRepository(),
+    private val cafeRepository: CafeRepository = CafeRepository(),
     private val pricing: PricingCalculator = PricingCalculator()
 ) : ViewModel() {
 
@@ -43,6 +45,10 @@ class AppointmentDetailViewModel(
             is AppointmentDetailIntent.UpdateStatus -> updateStatus(intent.status)
             is AppointmentDetailIntent.CompleteAppointment -> completeAppointment()
             is AppointmentDetailIntent.CancelAppointment -> cancelAppointment()
+            is AppointmentDetailIntent.ShowCafeSelector -> _uiState.update { it.copy(showCafeSelector = true) }
+            is AppointmentDetailIntent.HideCafeSelector -> _uiState.update { it.copy(showCafeSelector = false) }
+            is AppointmentDetailIntent.AddCafeProduct -> addCafeProduct(intent.product, intent.isCourtesy)
+            is AppointmentDetailIntent.RemoveCafeItem -> removeCafeItem(intent.index)
         }
     }
 
@@ -62,8 +68,8 @@ class AppointmentDetailViewModel(
                         commissionPct = appt.commission_pct
                     )
 
-                    // Cargar productos disponibles para la bebida cortesía
-                    val drinks = repository.getAvailableProducts(appt.business_id)
+                    // Cargar productos (bebida cortesía + menú cafetería)
+                    val drinks = cafeRepository.getProducts(appt.business_id)
 
                     // Cargar nombres de cliente, servicio y profesional
                     val clientName = getClientName(appt.client_id, appt.business_id)
@@ -186,6 +192,40 @@ class AppointmentDetailViewModel(
         return when (val result = repository.getProfessionals(businessId)) {
             is Result.Success -> result.data.find { it.id == professionalId }?.name ?: ""
             is Result.Error -> ""
+        }
+    }
+
+    private fun addCafeProduct(product: Product, isCourtesy: Boolean) {
+        viewModelScope.launch {
+            val state = _uiState.value
+            // businessId from the appointment — get or create order linked to this appointment
+            val appt = repository.getAppointmentById(appointmentId)
+            if (appt is Result.Error) return@launch
+            val businessId = (appt as Result.Success).data.business_id
+
+            val orderId = state.cafeOrderId ?: run {
+                val orderResult = cafeRepository.getOrCreateOrder(businessId, null, appointmentId)
+                if (orderResult is Result.Error) return@launch
+                val id = (orderResult as Result.Success).data.id
+                _uiState.update { it.copy(cafeOrderId = id) }
+                id
+            }
+
+            val itemResult = cafeRepository.addItemToOrder(orderId, product, isCourtesy,
+                if (isCourtesy) appointmentId else null)
+            if (itemResult is Result.Success) {
+                val newItems = state.cafeItems + itemResult.data
+                _uiState.update { it.copy(cafeItems = newItems, showCafeSelector = false) }
+            }
+        }
+    }
+
+    private fun removeCafeItem(index: Int) {
+        val items = _uiState.value.cafeItems
+        if (index !in items.indices) return
+        viewModelScope.launch {
+            cafeRepository.removeOrderItem(items[index].id)
+            _uiState.update { it.copy(cafeItems = items.toMutableList().also { l -> l.removeAt(index) }) }
         }
     }
 

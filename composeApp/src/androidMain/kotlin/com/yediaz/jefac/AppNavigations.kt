@@ -55,8 +55,12 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewAppointment by remember { mutableStateOf(false) }
     var detailAppointmentId by remember { mutableStateOf<String?>(null) }
+    data class CafeOrderState(val tableId: String?, val tableNumber: Int, val orderId: String?, val appointmentId: String?, val clientName: String, val session: Int = 0)
+    var cafeOrderState by remember { mutableStateOf<CafeOrderState?>(null) }
+    var cafeRefreshKey by remember { mutableIntStateOf(0) }
+    var cafeOrderSession by remember { mutableIntStateOf(0) }
 
-    // Nueva cita aparece encima de todo, sin bottom nav
+    // Nueva cita
     if (showNewAppointment) {
         NewAppointmentScreen(
             user = user,
@@ -66,11 +70,30 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
         return
     }
 
+    // Detalle de cita
     detailAppointmentId?.let { id ->
         AppointmentDetailScreen(
             user = user,
             appointmentId = id,
             onNavigateBack = { detailAppointmentId = null }
+        )
+        return
+    }
+
+    // Orden de cafetería
+    cafeOrderState?.let { state ->
+        com.yediaz.jefac.ui.cafe.OrderScreen(
+            user            = user,
+            tableId         = state.tableId ?: "",
+            tableNumber     = state.tableNumber,
+            existingOrderId = state.orderId,
+            appointmentId   = state.appointmentId,
+            clientName      = state.clientName,
+            session         = state.session,
+            onNavigateBack  = {
+                cafeOrderState = null
+                cafeRefreshKey++
+            }
         )
         return
     }
@@ -127,7 +150,14 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                     onNavigateToDetail = { id -> detailAppointmentId = id }
                 )
 
-                2 -> PlaceholderScreen("Cafetería", user, onSignOut)
+                2 -> com.yediaz.jefac.ui.cafe.CafeScreen(
+                    user = user,
+                    refreshKey = cafeRefreshKey,
+                    onNavigateToOrder = { tableId, tableNumber, orderId, appointmentId, clientName ->
+                        cafeOrderSession++
+                        cafeOrderState = CafeOrderState(tableId, tableNumber, orderId, appointmentId, clientName, cafeOrderSession)
+                    }
+                )
                 3 -> PlaceholderScreen("Finanzas", user, onSignOut)
             }
         }

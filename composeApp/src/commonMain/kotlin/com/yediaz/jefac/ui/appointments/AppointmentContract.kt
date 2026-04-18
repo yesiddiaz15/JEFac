@@ -150,13 +150,21 @@ data class AppointmentDetailUiState(
     val availableDrinks: List<Product> = emptyList(),
     val notes: String = "",
     val error: String? = null,
-    val serviceNames: List<String> = emptyList()
+    val serviceNames: List<String> = emptyList(),
+    // Pedido cafetería
+    val cafeItems: List<com.yediaz.jefac.ui.cafe.OrderItemUi> = emptyList(),
+    val showCafeSelector: Boolean = false,
+    val cafeOrderId: String? = null
 )
 
 sealed class AppointmentDetailIntent {
     data class LoadAppointment(val id: String) : AppointmentDetailIntent()
     object ToggleCourtesyDrink : AppointmentDetailIntent()
     data class SelectDrink(val drink: Product?) : AppointmentDetailIntent()
+    object ShowCafeSelector : AppointmentDetailIntent()
+    object HideCafeSelector : AppointmentDetailIntent()
+    data class AddCafeProduct(val product: Product, val isCourtesy: Boolean) : AppointmentDetailIntent()
+    data class RemoveCafeItem(val index: Int) : AppointmentDetailIntent()
     data class UpdateStatus(val status: String) : AppointmentDetailIntent()
     object CompleteAppointment : AppointmentDetailIntent()
     object CancelAppointment : AppointmentDetailIntent()

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,6 +77,17 @@ fun AppointmentDetailScreen(
                 is AppointmentDetailEffect.ShowError -> {}
             }
         }
+    }
+
+    // Selector de productos de cafetería
+    if (uiState.showCafeSelector) {
+        com.yediaz.jefac.ui.cafe.ProductSelectorSheet(
+            products = uiState.availableDrinks,
+            onDismiss = { viewModel.handleIntent(AppointmentDetailIntent.HideCafeSelector) },
+            onSelect = { product, isCourtesy ->
+                viewModel.handleIntent(AppointmentDetailIntent.AddCafeProduct(product, isCourtesy))
+            }
+        )
     }
 
     Scaffold(
@@ -145,7 +157,11 @@ fun AppointmentDetailScreen(
                 uiState.pricing?.let { pricing ->
                     item {
                         SectionLabel("Desglose de pago")
-                        PricingCard(pricing = pricing, deposit = uiState.deposit)
+                        PricingCard(
+                            pricing   = pricing,
+                            deposit   = uiState.deposit,
+                            cafeTotal = uiState.cafeItems.filter { !it.isCourtesy }.sumOf { it.unitPrice }
+                        )
                     }
                 }
 
@@ -165,6 +181,17 @@ fun AppointmentDetailScreen(
                                 )
                             )
                         }
+                    )
+                }
+
+                // ── Pedido cafetería ─────────
+                item {
+                    SectionLabel("Pedido cafetería")
+                    CafeOrderCard(
+                        items = uiState.cafeItems,
+                        isCompleted = uiState.status in listOf("completed", "cancelled"),
+                        onAddProduct = { viewModel.handleIntent(AppointmentDetailIntent.ShowCafeSelector) },
+                        onRemoveItem = { idx -> viewModel.handleIntent(AppointmentDetailIntent.RemoveCafeItem(idx)) }
                     )
                 }
 
@@ -334,8 +361,9 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0) {
-    val balance = pricing.finalPrice - deposit
+private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0, cafeTotal: Double = 0.0) {
+    val grandTotal = pricing.finalPrice + cafeTotal
+    val balance    = grandTotal - deposit
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -377,17 +405,33 @@ private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0) {
                 formatCurrency(pricing.businessEarn),
                 AppColors.BusinessEarn
             )
-            if (deposit > 0) {
+
+            // Cafetería + totales
+            if (cafeTotal > 0 || deposit > 0) {
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = AppColors.Border,
                     thickness = 0.5.dp
                 )
+            }
+            if (cafeTotal > 0) {
+                PricingRow("Cita", formatCurrency(pricing.finalPrice), AppColors.TextDark)
+                PricingRow("Cafetería", formatCurrency(cafeTotal), AppColors.TextDark)
                 PricingRow(
-                    "Abono recibido",
-                    formatCurrency(deposit),
-                    AppColors.CourtesyGreen
+                    label = "Total a cobrar",
+                    value = formatCurrency(grandTotal),
+                    valueColor = AppColors.Primary,
+                    isBold = true,
+                    valueFontSize = 16
                 )
+            }
+            if (deposit > 0) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    color = AppColors.Border,
+                    thickness = 0.5.dp
+                )
+                PricingRow("Abono recibido", formatCurrency(deposit), AppColors.CourtesyGreen)
                 PricingRow(
                     label = "Saldo pendiente",
                     value = formatCurrency(balance.coerceAtLeast(0.0)),
@@ -660,3 +704,82 @@ private fun formatDate(scheduledAt: String): String =
     } catch (e: Exception) {
         "---"
     }
+
+@Composable
+private fun CafeOrderCard(
+    items: List<com.yediaz.jefac.ui.cafe.OrderItemUi>,
+    isCompleted: Boolean,
+    onAddProduct: () -> Unit,
+    onRemoveItem: (Int) -> Unit
+) {
+    val total = items.filter { !it.isCourtesy }.sumOf { it.unitPrice }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.BgCard),
+        border = BorderStroke(0.5.dp, AppColors.Border)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            if (items.isEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Sin pedidos aún", fontSize = 13.sp, color = AppColors.TextMuted)
+                    if (!isCompleted) {
+                        TextButton(onClick = onAddProduct) {
+                            Text("+ Agregar", color = AppColors.Primary, fontSize = 13.sp)
+                        }
+                    }
+                }
+            } else {
+                items.forEachIndexed { index, item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (item.isCourtesy) "🎁 ${item.productName}" else "☕ ${item.productName}",
+                            fontSize = 13.sp,
+                            color = if (item.isCourtesy) AppColors.CourtesyGreen else AppColors.TextDark,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (item.isCourtesy) {
+                            Text("Sin cobro", fontSize = 12.sp, color = AppColors.CourtesyGreen)
+                        } else {
+                            Text(formatCurrency(item.unitPrice), fontSize = 13.sp, color = AppColors.TextDark)
+                        }
+                        if (!isCompleted) {
+                            androidx.compose.material3.IconButton(
+                                onClick = { onRemoveItem(index) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("×", fontSize = 16.sp, color = AppColors.TextMuted)
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = AppColors.Border, thickness = 0.5.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Total cafetería", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+                    Text(formatCurrency(total), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppColors.Primary)
+                }
+                if (!isCompleted) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onAddProduct,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("+ Agregar más", color = AppColors.Primary, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+    }
+}
