@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -625,6 +626,39 @@ private fun BottomActions(
     status: String,
     viewModel: AppointmentDetailViewModel
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            containerColor = AppColors.BgCard,
+            title = {
+                Text("¿Cancelar esta cita?", fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+            },
+            text = {
+                Text(
+                    "La cita quedará marcada como cancelada. Esta acción no se puede deshacer.",
+                    fontSize = 13.sp, color = AppColors.TextMuted
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        viewModel.handleIntent(AppointmentDetailIntent.CancelAppointment)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Expense)
+                ) { Text("Sí, cancelar", color = AppColors.OnPrimary) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Volver", color = AppColors.TextMuted)
+                }
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -635,7 +669,7 @@ private fun BottomActions(
             "pending", "confirmed" -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
-                        onClick = { viewModel.handleIntent(AppointmentDetailIntent.CancelAppointment) },
+                        onClick = { showCancelDialog = true },
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
                         border = BorderStroke(0.5.dp, AppColors.Border)
@@ -661,17 +695,28 @@ private fun BottomActions(
             }
 
             "in_progress" -> {
-                Button(
-                    onClick = { viewModel.handleIntent(AppointmentDetailIntent.CompleteAppointment) },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppColors.Primary,
-                        contentColor = AppColors.OnPrimary
-                    )
-                ) {
-                    Text("Completar y cobrar", fontSize = 16.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.handleIntent(AppointmentDetailIntent.CompleteAppointment) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.Primary,
+                            contentColor = AppColors.OnPrimary
+                        )
+                    ) {
+                        Text("Completar y cobrar", fontSize = 16.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { showCancelDialog = true },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(0.5.dp, AppColors.Border)
+                    ) {
+                        Text("Cancelar cita", color = AppColors.TextMuted, fontSize = 14.sp)
+                    }
                 }
+
             }
         }
     }

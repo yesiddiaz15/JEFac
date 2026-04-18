@@ -61,6 +61,7 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var cafeOrderState by remember { mutableStateOf<CafeOrderState?>(null) }
     var cafeRefreshKey by remember { mutableIntStateOf(0) }
     var cafeOrderSession by remember { mutableIntStateOf(0) }
+    var financeRefreshKey by remember { mutableIntStateOf(0) }
 
     // Nueva cita
     if (showNewAppointment) {
@@ -122,6 +123,7 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                             when (index) {
                                 0 -> homeRefreshKey++
                                 1 -> appointmentsRefreshKey++
+                                3 -> financeRefreshKey++
                             }
                         },
                         icon = {
@@ -168,7 +170,10 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                         cafeOrderState = CafeOrderState(tableId, tableNumber, orderId, appointmentId, clientName, cafeOrderSession)
                     }
                 )
-                3 -> PlaceholderScreen("Finanzas", user, onSignOut)
+                3 -> com.yediaz.jefac.ui.finance.FinanceScreen(
+                    user = user,
+                    refreshKey = financeRefreshKey
+                )
             }
         }
     }
@@ -269,7 +274,7 @@ fun CafeNavigation(user: AppUser, onSignOut: () -> Unit) {
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
                 0 -> PlaceholderScreen("Mesas & Pedidos", user, onSignOut)
-                1 -> PlaceholderScreen("Inventario", user, onSignOut)
+                1 -> com.yediaz.jefac.ui.cafe.InventoryScreen(user = user)
             }
         }
     }
