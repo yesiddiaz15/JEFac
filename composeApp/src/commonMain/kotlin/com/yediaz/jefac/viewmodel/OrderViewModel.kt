@@ -21,13 +21,22 @@ import kotlin.reflect.KClass
 
 class OrderViewModel(
     private val businessId: String,
-    private val tableId: String,
+    private val tableId: String?,
     private val tableNumber: Int,
     private val existingOrderId: String?,
+    private val appointmentId: String? = null,
+    private val clientName: String = "",
     private val repository: CafeRepository = CafeRepository()
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(OrderUiState(tableNumber = tableNumber, tableId = tableId))
+    private val _uiState = MutableStateFlow(
+        OrderUiState(
+            tableNumber   = tableNumber,
+            tableId       = tableId ?: "",
+            appointmentId = appointmentId,
+            clientName    = clientName
+        )
+    )
     val uiState = _uiState.asStateFlow()
 
     private val _effects = Channel<OrderEffect>(Channel.BUFFERED)
@@ -37,16 +46,16 @@ class OrderViewModel(
 
     fun handleIntent(intent: OrderIntent) {
         when (intent) {
-            is OrderIntent.LoadOrder -> loadOrder()
-            is OrderIntent.ShowProductSelector -> _uiState.update { it.copy(showProductSelector = true) }
-            is OrderIntent.HideProductSelector -> _uiState.update { it.copy(showProductSelector = false) }
-            is OrderIntent.AddProduct -> addProduct(intent.product, intent.isCourtesy)
-            is OrderIntent.RemoveItem -> removeItem(intent.itemIndex)
+            is OrderIntent.LoadOrder              -> loadOrder()
+            is OrderIntent.ShowProductSelector    -> _uiState.update { it.copy(showProductSelector = true) }
+            is OrderIntent.HideProductSelector    -> _uiState.update { it.copy(showProductSelector = false) }
+            is OrderIntent.AddProduct             -> addProduct(intent.product, intent.isCourtesy)
+            is OrderIntent.RemoveItem             -> removeItem(intent.itemIndex)
             is OrderIntent.ShowAppointmentSelector -> _uiState.update { it.copy(pendingCourtesyItemIndex = intent.itemIndex) }
             is OrderIntent.HideAppointmentSelector -> _uiState.update { it.copy(pendingCourtesyItemIndex = null) }
             is OrderIntent.LinkCourtesyToAppointment -> linkToAppointment(intent.itemIndex, intent.appointment)
-            is OrderIntent.CloseOrder -> closeOrder()
-            is OrderIntent.NavigateBack -> viewModelScope.launch { _effects.send(OrderEffect.NavigateBack) }
+            is OrderIntent.CloseOrder             -> closeOrder()
+            is OrderIntent.NavigateBack           -> viewModelScope.launch { _effects.send(OrderEffect.NavigateBack) }
         }
     }
 
@@ -54,33 +63,22 @@ class OrderViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            val productsResult = repository.getProducts(businessId)
-            val products = if (productsResult is Result.Success) productsResult.data else emptyList()
-
+            val productsResult     = repository.getProducts(businessId)
+            val products           = if (productsResult is Result.Success) productsResult.data else emptyList()
             val appointmentsResult = repository.getActiveAppointments(businessId)
-            val appointments = if (appointmentsResult is Result.Success) appointmentsResult.data else emptyList()
+            val appointments       = if (appointmentsResult is Result.Success) appointmentsResult.data else emptyList()
 
             if (existingOrderId != null) {
                 val itemsResult = repository.getOrderItems(existingOrderId, products)
-                val items = if (itemsResult is Result.Success) itemsResult.data else emptyList()
-                val total = items.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
+                val items       = if (itemsResult is Result.Success) itemsResult.data else emptyList()
+                val total       = items.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        orderId = existingOrderId,
-                        items = items,
-                        availableProducts = products,
-                        activeAppointments = appointments,
-                        total = total
-                    )
+                    it.copy(isLoading = false, orderId = existingOrderId, items = items,
+                        availableProducts = products, activeAppointments = appointments, total = total)
                 }
             } else {
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        availableProducts = products,
-                        activeAppointments = appointments
-                    )
+                    it.copy(isLoading = false, availableProducts = products, activeAppointments = appointments)
                 }
             }
         }
@@ -90,9 +88,12 @@ class OrderViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, showProductSelector = false) }
 
-            // Get or create order first
             val orderId = _uiState.value.orderId ?: run {
-                val orderResult = repository.getOrCreateOrder(businessId, tableId)
+                val orderResult = if (tableId != null) {
+                    repository.getOrCreateOrder(businessId, tableId, null)
+                } else {
+                    repository.getOrCreateOrder(businessId, null, appointmentId)
+                }
                 if (orderResult is Result.Error) {
                     _uiState.update { it.copy(isSaving = false, error = orderResult.message) }
                     return@launch
@@ -102,10 +103,13 @@ class OrderViewModel(
                 order.id
             }
 
-            val itemResult = repository.addItemToOrder(orderId, product, isCourtesy, null)
+            // Para órdenes de cita, vincular automáticamente el ítem a la cita
+            val linkedApptId = if (appointmentId != null && isCourtesy) appointmentId else null
+
+            val itemResult = repository.addItemToOrder(orderId, product, isCourtesy, linkedApptId)
             if (itemResult is Result.Success) {
                 val newItems = _uiState.value.items + itemResult.data
-                val total = newItems.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
+                val total    = newItems.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
                 repository.updateOrderTotal(orderId, total)
                 _uiState.update { it.copy(isSaving = false, items = newItems, total = total) }
             } else {
@@ -122,8 +126,8 @@ class OrderViewModel(
         viewModelScope.launch {
             repository.removeOrderItem(item.id)
             val newItems = items.toMutableList().also { it.removeAt(index) }
-            val total = newItems.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
-            val orderId = _uiState.value.orderId
+            val total    = newItems.filter { !it.isCourtesy }.sumOf { it.unitPrice * it.quantity }
+            val orderId  = _uiState.value.orderId
             if (orderId != null) repository.updateOrderTotal(orderId, total)
             _uiState.update { it.copy(items = newItems, total = total) }
         }
@@ -138,17 +142,18 @@ class OrderViewModel(
             repository.linkItemToAppointment(item.id, appointment.id)
             val updated = items.toMutableList()
             updated[index] = item.copy(
-                isCourtesy = true,
+                isCourtesy          = true,
                 linkedAppointmentId = appointment.id,
-                linkedClientName = appointment.clientName
+                linkedClientName    = appointment.clientName
             )
             _uiState.update { it.copy(items = updated, pendingCourtesyItemIndex = null) }
         }
     }
 
     private fun closeOrder() {
-        val state = _uiState.value
+        val state   = _uiState.value
         val orderId = state.orderId ?: run {
+            // Orden vacía — solo navegar atrás
             viewModelScope.launch { _effects.send(OrderEffect.NavigateBack) }
             return
         }
@@ -166,13 +171,15 @@ class OrderViewModel(
 
     class Factory(
         private val businessId: String,
-        private val tableId: String,
+        private val tableId: String?,
         private val tableNumber: Int,
-        private val existingOrderId: String?
+        private val existingOrderId: String?,
+        private val appointmentId: String? = null,
+        private val clientName: String = ""
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
             @Suppress("UNCHECKED_CAST")
-            return OrderViewModel(businessId, tableId, tableNumber, existingOrderId) as T
+            return OrderViewModel(businessId, tableId, tableNumber, existingOrderId, appointmentId, clientName) as T
         }
     }
 }

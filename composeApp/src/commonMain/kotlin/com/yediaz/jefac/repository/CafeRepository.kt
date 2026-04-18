@@ -65,26 +65,18 @@ class CafeRepository {
         }
     }
 
-    suspend fun getOrCreateOrder(businessId: String, tableId: String): Result<com.yediaz.jefac.data.Order> {
+    suspend fun getOrCreateOrder(
+        businessId: String,
+        tableId: String?,
+        appointmentId: String?
+    ): Result<com.yediaz.jefac.data.Order> {
         return try {
-            // Buscar orden abierta para esta mesa
-            val response = supabase.postgrest["orders"]
-                .select {
-                    filter {
-                        eq("business_id", businessId)
-                        eq("table_id", tableId)
-                        eq("status", "open")
-                    }
-                }.data
-
-            val existing = json.decodeFromString<List<com.yediaz.jefac.data.Order>>(response)
-            if (existing.isNotEmpty()) return Result.Success(existing.first())
-
-            // No hay orden abierta, crear una nueva
+            // Crear nueva orden
             val created = supabase.postgrest["orders"]
                 .insert(buildJsonObject {
                     put("business_id", businessId)
-                    put("table_id", tableId)
+                    if (tableId != null) put("table_id", tableId)
+                    if (appointmentId != null) put("appointment_id", appointmentId)
                     put("status", "open")
                     put("total", 0.0)
                 }) { select() }.data
@@ -92,8 +84,8 @@ class CafeRepository {
             val order = json.decodeFromString<List<com.yediaz.jefac.data.Order>>(created).firstOrNull()
                 ?: return Result.Error("Error al crear orden")
 
-            // Marcar mesa como ocupada
-            updateTableStatus(tableId, "occupied")
+            // Marcar mesa como ocupada si aplica
+            if (tableId != null) updateTableStatus(tableId, "occupied")
 
             Result.Success(order)
         } catch (e: Exception) {
@@ -208,13 +200,13 @@ class CafeRepository {
         }
     }
 
-    suspend fun closeOrder(orderId: String, tableId: String, total: Double, businessId: String): Result<Unit> {
+    suspend fun closeOrder(orderId: String, tableId: String?, total: Double, businessId: String): Result<Unit> {
         return try {
             supabase.postgrest["orders"]
                 .update({ set("status", "closed") }) {
                     filter { eq("id", orderId) }
                 }
-            updateTableStatus(tableId, "free")
+            if (tableId != null) updateTableStatus(tableId, "free")
 
             if (total > 0) {
                 supabase.postgrest["transactions"].insert(buildJsonObject {

@@ -33,11 +33,13 @@ fun OrderScreen(
     tableId: String,
     tableNumber: Int,
     existingOrderId: String?,
+    appointmentId: String? = null,
+    clientName: String = "",
     onNavigateBack: () -> Unit = {}
 ) {
     val viewModel: OrderViewModel = viewModel(
-        key = tableId,
-        factory = OrderViewModel.Factory(user.business_id, tableId, tableNumber, existingOrderId)
+        key = tableId.ifBlank { appointmentId ?: "appt" },
+        factory = OrderViewModel.Factory(user.business_id, tableId.ifBlank { null }, tableNumber, existingOrderId, appointmentId, clientName)
     )
     val uiState by viewModel.uiState.collectAsState()
 
@@ -67,7 +69,10 @@ fun OrderScreen(
                             tint = AppColors.TextDark, modifier = Modifier.size(20.dp))
                     }
                 }
-                Text("Mesa ${uiState.tableNumber}", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+                Text(
+                    text = if (uiState.appointmentId != null) "Cita de ${uiState.clientName}" else "Mesa ${uiState.tableNumber}",
+                    fontSize = 16.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark
+                )
                 Box(
                     modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(AppColors.BgSecondary)
                         .border(0.5.dp, AppColors.Border, RoundedCornerShape(20.dp))
@@ -122,6 +127,15 @@ fun OrderScreen(
             }
         }
     ) { padding ->
+        // Error display
+        uiState.error?.let { error ->
+            androidx.compose.material3.Snackbar(
+                modifier = Modifier.padding(16.dp),
+                containerColor = AppColors.Expense,
+                contentColor = AppColors.OnPrimary
+            ) { Text(error, fontSize = 13.sp) }
+        }
+
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AppColors.Primary)

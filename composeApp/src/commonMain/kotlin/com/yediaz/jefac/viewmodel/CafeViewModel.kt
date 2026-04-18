@@ -34,6 +34,7 @@ class CafeViewModel(
         when (intent) {
             is CafeIntent.LoadTables -> loadTables()
             is CafeIntent.SelectTable -> openTable(intent.table)
+            is CafeIntent.SelectAppointment -> openAppointmentOrder(intent.appointment)
         }
     }
 
@@ -41,24 +42,51 @@ class CafeViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val tablesResult = repository.getTables(businessId)
-            val ordersResult = repository.getActiveOrders(businessId)
+            val tablesResult      = repository.getTables(businessId)
+            val ordersResult      = repository.getActiveOrders(businessId)
+            val appointmentsResult = repository.getActiveAppointments(businessId)
 
             val tables = if (tablesResult is Result.Success) tablesResult.data else emptyList()
-            val error = if (tablesResult is Result.Error) tablesResult.message else null
+            val error  = if (tablesResult is Result.Error) tablesResult.message else null
             val ordersMap = if (ordersResult is Result.Success) {
-                ordersResult.data.filter { it.table_id != null }
-                    .associateBy { it.table_id!! }
+                ordersResult.data.filter { it.table_id != null }.associateBy { it.table_id!! }
             } else emptyMap()
+            val appointments = if (appointmentsResult is Result.Success) appointmentsResult.data else emptyList()
 
-            _uiState.update { it.copy(isLoading = false, tables = tables, activeOrders = ordersMap, error = error) }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    tables = tables,
+                    activeOrders = ordersMap,
+                    activeAppointments = appointments,
+                    error = error
+                )
+            }
         }
     }
 
     private fun openTable(table: com.yediaz.jefac.data.CafeTable) {
         viewModelScope.launch {
             val order = _uiState.value.activeOrders[table.id]
-            _effects.send(CafeEffect.NavigateToOrder(tableId = table.id, orderId = order?.id))
+            _effects.send(CafeEffect.NavigateToOrder(
+                tableId       = table.id,
+                tableNumber   = table.table_number,
+                orderId       = order?.id,
+                appointmentId = null,
+                clientName    = ""
+            ))
+        }
+    }
+
+    private fun openAppointmentOrder(appointment: com.yediaz.jefac.ui.cafe.ActiveAppointmentUi) {
+        viewModelScope.launch {
+            _effects.send(CafeEffect.NavigateToOrder(
+                tableId       = null,
+                tableNumber   = 0,
+                orderId       = null,
+                appointmentId = appointment.id,
+                clientName    = appointment.clientName
+            ))
         }
     }
 

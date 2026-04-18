@@ -5,9 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,18 +27,22 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun CafeScreen(
     user: AppUser,
-    onNavigateToOrder: (tableId: String, tableNumber: Int, orderId: String?) -> Unit = { _, _, _ -> }
+    refreshKey: Int = 0,
+    onNavigateToOrder: (tableId: String?, tableNumber: Int, orderId: String?, appointmentId: String?, clientName: String) -> Unit = { _, _, _, _, _ -> }
 ) {
     val viewModel: CafeViewModel = viewModel(factory = CafeViewModel.Factory(user.business_id))
     val uiState by viewModel.uiState.collectAsState()
 
+    // Recargar cuando volvemos de una orden
+    LaunchedEffect(refreshKey) {
+        if (refreshKey > 0) viewModel.handleIntent(CafeIntent.LoadTables)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
-                is CafeEffect.NavigateToOrder -> {
-                    val table = uiState.tables.find { it.id == effect.tableId }
-                    onNavigateToOrder(effect.tableId, table?.table_number ?: 0, effect.orderId)
-                }
+                is CafeEffect.NavigateToOrder ->
+                    onNavigateToOrder(effect.tableId, effect.tableNumber, effect.orderId, effect.appointmentId, effect.clientName)
             }
         }
     }
@@ -63,7 +65,6 @@ fun CafeScreen(
         ) {
             LegendItem(Color(0xFFD4F0D4), AppColors.CourtesyGreen, "Libre")
             LegendItem(Color(0xFFF5E8E8), AppColors.Expense, "Ocupada")
-            LegendItem(Color(0xFFFFF3CC), AppColors.PrimaryDark, "Cortesía")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -86,20 +87,54 @@ fun CafeScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxSize()
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                items(uiState.tables) { table ->
-                    val order = uiState.activeOrders[table.id]
-                    TableCard(
-                        table = table,
-                        order = order,
-                        onClick = { viewModel.handleIntent(CafeIntent.SelectTable(table)) }
-                    )
+                // ── Mesas ──────────────────────
+                item {
+                    val chunked = uiState.tables.chunked(3)
+                    chunked.forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            row.forEach { table ->
+                                val order = uiState.activeOrders[table.id]
+                                Box(modifier = Modifier.weight(1f)) {
+                                    TableCard(
+                                        table = table,
+                                        order = order,
+                                        onClick = { viewModel.handleIntent(CafeIntent.SelectTable(table)) }
+                                    )
+                                }
+                            }
+                            // Relleno si la fila tiene menos de 3
+                            repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                        }
+                    }
+                }
+
+                // ── Citas activas ───────────────
+                if (uiState.activeAppointments.isNotEmpty()) {
+                    item {
+                        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp)) {
+                            Text(
+                                "CITAS EN CURSO",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AppColors.TextMuted,
+                                letterSpacing = 0.7.sp
+                            )
+                            Text("Toca para agregar productos a su cuenta", fontSize = 11.sp, color = AppColors.TextLight)
+                        }
+                    }
+                    items(uiState.activeAppointments) { appt ->
+                        AppointmentOrderCard(
+                            appointment = appt,
+                            onClick = { viewModel.handleIntent(CafeIntent.SelectAppointment(appt)) }
+                        )
+                    }
                 }
             }
         }
@@ -182,6 +217,39 @@ private fun TableCard(table: CafeTable, order: Order?, onClick: () -> Unit) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentOrderCard(appointment: ActiveAppointmentUi, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.BgCard),
+        border = BorderStroke(0.5.dp, AppColors.Border)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(AppColors.BgSecondary),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(appointment.clientName.take(2).uppercase(), fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium, color = AppColors.PrimaryDark)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(appointment.clientName, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+                Text(appointment.serviceName, fontSize = 11.sp, color = AppColors.TextMuted)
+            }
+            Text("+ Agregar", fontSize = 12.sp, color = AppColors.Primary, fontWeight = FontWeight.Medium)
         }
     }
 }

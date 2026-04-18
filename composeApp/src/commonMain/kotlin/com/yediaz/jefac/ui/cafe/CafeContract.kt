@@ -12,16 +12,24 @@ data class CafeUiState(
     val isLoading: Boolean = false,
     val tables: List<CafeTable> = emptyList(),
     val activeOrders: Map<String, Order> = emptyMap(),  // tableId -> Order
+    val activeAppointments: List<ActiveAppointmentUi> = emptyList(),
     val error: String? = null
 )
 
 sealed class CafeIntent {
     object LoadTables : CafeIntent()
     data class SelectTable(val table: CafeTable) : CafeIntent()
+    data class SelectAppointment(val appointment: ActiveAppointmentUi) : CafeIntent()
 }
 
 sealed class CafeEffect {
-    data class NavigateToOrder(val tableId: String, val orderId: String?) : CafeEffect()
+    data class NavigateToOrder(
+        val tableId: String?,
+        val tableNumber: Int,
+        val orderId: String?,
+        val appointmentId: String?,
+        val clientName: String
+    ) : CafeEffect()
 }
 
 // ─────────────────────────────────────────────
@@ -33,6 +41,8 @@ data class OrderUiState(
     val isSaving: Boolean = false,
     val tableNumber: Int = 0,
     val tableId: String = "",
+    val appointmentId: String? = null,
+    val clientName: String = "",
     val orderId: String? = null,
     val items: List<OrderItemUi> = emptyList(),
     val availableProducts: List<Product> = emptyList(),

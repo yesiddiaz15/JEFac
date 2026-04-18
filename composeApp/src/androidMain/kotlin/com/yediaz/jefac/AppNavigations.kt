@@ -55,7 +55,9 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewAppointment by remember { mutableStateOf(false) }
     var detailAppointmentId by remember { mutableStateOf<String?>(null) }
-    var cafeOrderState by remember { mutableStateOf<Triple<String, Int, String?>?>(null) }
+    data class CafeOrderState(val tableId: String?, val tableNumber: Int, val orderId: String?, val appointmentId: String?, val clientName: String)
+    var cafeOrderState by remember { mutableStateOf<CafeOrderState?>(null) }
+    var cafeRefreshKey by remember { mutableIntStateOf(0) }
 
     // Nueva cita
     if (showNewAppointment) {
@@ -78,13 +80,18 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     }
 
     // Orden de cafetería
-    cafeOrderState?.let { (tableId, tableNumber, orderId) ->
+    cafeOrderState?.let { state ->
         com.yediaz.jefac.ui.cafe.OrderScreen(
-            user = user,
-            tableId = tableId,
-            tableNumber = tableNumber,
-            existingOrderId = orderId,
-            onNavigateBack = { cafeOrderState = null }
+            user           = user,
+            tableId        = state.tableId ?: "",
+            tableNumber    = state.tableNumber,
+            existingOrderId = state.orderId,
+            appointmentId  = state.appointmentId,
+            clientName     = state.clientName,
+            onNavigateBack = {
+                cafeOrderState = null
+                cafeRefreshKey++
+            }
         )
         return
     }
@@ -143,8 +150,9 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
 
                 2 -> com.yediaz.jefac.ui.cafe.CafeScreen(
                     user = user,
-                    onNavigateToOrder = { tableId, tableNumber, orderId ->
-                        cafeOrderState = Triple(tableId, tableNumber, orderId)
+                    refreshKey = cafeRefreshKey,
+                    onNavigateToOrder = { tableId, tableNumber, orderId, appointmentId, clientName ->
+                        cafeOrderState = CafeOrderState(tableId, tableNumber, orderId, appointmentId, clientName)
                     }
                 )
                 3 -> PlaceholderScreen("Finanzas", user, onSignOut)
