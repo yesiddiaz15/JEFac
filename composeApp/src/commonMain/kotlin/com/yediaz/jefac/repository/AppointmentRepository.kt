@@ -242,7 +242,6 @@ class AppointmentRepository {
                 )
             }
 
-            registerAppointmentTransaction(result)
             Result.Success(result)
 
         } catch (e: Exception) {
@@ -259,11 +258,18 @@ class AppointmentRepository {
     ): Result<Unit> {
         return try {
             supabase.postgrest["appointments"]
-                .update({
-                    set("status", status)
-                }) {
+                .update({ set("status", status) }) {
                     filter { eq("id", id) }
                 }
+
+            // Registrar transacción solo al completar
+            if (status == "completed") {
+                val apptResult = getAppointmentById(id)
+                if (apptResult is Result.Success) {
+                    registerAppointmentTransaction(apptResult.data)
+                }
+            }
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al actualizar la cita")
