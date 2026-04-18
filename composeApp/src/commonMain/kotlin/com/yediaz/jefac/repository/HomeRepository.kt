@@ -10,6 +10,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -26,14 +27,15 @@ class HomeRepository {
                 .select {
                     filter {
                         eq("business_id", businessId)
-                        gte("scheduled_at", getTodayStart())
-                        lte("scheduled_at", getTodayEnd())
                     }
                     order("scheduled_at", Order.ASCENDING)
                 }
                 .data
 
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val todayStr = today.toString()
             val appointments = json.decodeFromString<List<AppointmentRow>>(response)
+                .filter { it.scheduled_at.substring(0, 10) == todayStr }
             val summaries = appointments.map { appt ->
                 val clientName = getClientName(appt.client_id)
                 val serviceName = getServiceName(appt.service_id)
@@ -65,13 +67,13 @@ class HomeRepository {
                     filter {
                         eq("business_id", businessId)
                         eq("type", "income")
-                        gte("date", getTodayStart())
-                        lte("date", getTodayEnd())
                     }
                 }
                 .data
 
+            val todayStr = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             val transactions = json.decodeFromString<List<TransactionRow>>(response)
+                .filter { it.date.substring(0, 10) == todayStr }
             val total = transactions.sumOf { it.amount }
 
             Result.Success(total)
@@ -87,13 +89,13 @@ class HomeRepository {
                     filter {
                         eq("business_id", businessId)
                         eq("type", "expense")
-                        gte("date", getTodayStart())
-                        lte("date", getTodayEnd())
                     }
                 }
                 .data
 
+            val todayStr = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             val transactions = json.decodeFromString<List<TransactionRow>>(response)
+                .filter { it.date.substring(0, 10) == todayStr }
             val total = transactions.sumOf { it.amount }
 
             Result.Success(total)
@@ -114,9 +116,7 @@ class HomeRepository {
             val tables = json.decodeFromString<List<CafeTableRow>>(response)
 
             val summaries = tables.map { table ->
-                val total = if (table.status == "occupied") {
-                    getTableCurrentTotal(table.id)
-                } else 0.0
+                val total = getTableCurrentTotal(table.id)
 
                 CafeTableSummary(
                     id = table.id,
@@ -138,13 +138,18 @@ class HomeRepository {
                 .select {
                     filter {
                         eq("business_id", businessId)
-                        gte("date", getWeekStart())
-                        lte("date", getTodayEnd())
                     }
                 }
                 .data
 
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val weekStart = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
+            val weekEnd = weekStart.plus(6, DateTimeUnit.DAY)
             val transactions = json.decodeFromString<List<TransactionRow>>(response)
+                .filter {
+                    val d = it.date.substring(0, 10)
+                    d >= weekStart.toString() && d <= weekEnd.toString()
+                }
 
             val days = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Hoy")
             val summaries = days.mapIndexed { index, label ->

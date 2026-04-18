@@ -53,6 +53,8 @@ data class NavItem(
 @Composable
 fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var homeRefreshKey by remember { mutableIntStateOf(0) }
+    var appointmentsRefreshKey by remember { mutableIntStateOf(0) }
     var showNewAppointment by remember { mutableStateOf(false) }
     var detailAppointmentId by remember { mutableStateOf<String?>(null) }
     data class CafeOrderState(val tableId: String?, val tableNumber: Int, val orderId: String?, val appointmentId: String?, val clientName: String, val session: Int = 0)
@@ -115,7 +117,13 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                 tabs.forEachIndexed { index, item ->
                     NavigationBarItem(
                         selected = selectedTab == index,
-                        onClick = { selectedTab = index },
+                        onClick = {
+                            selectedTab = index
+                            when (index) {
+                                0 -> homeRefreshKey++
+                                1 -> appointmentsRefreshKey++
+                            }
+                        },
                         icon = {
                             Icon(
                                 item.icon,
@@ -140,12 +148,14 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
             when (selectedTab) {
                 0 -> HomeScreen(
                     user = user,
+                    refreshKey = homeRefreshKey,
                     onNavigateToNewAppointment = { showNewAppointment = true },
-                    onNavigateToNewOrder = { /* módulo cafetería - próximo paso */ }
+                    onNavigateToNewOrder = { selectedTab = 2 }
                 )
 
                 1 -> AppointmentsScreen(
                     user = user,
+                    refreshKey = appointmentsRefreshKey,
                     onNavigateToNewAppointment = { showNewAppointment = true },
                     onNavigateToDetail = { id -> detailAppointmentId = id }
                 )
