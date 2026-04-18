@@ -157,24 +157,12 @@ private fun LegendItem(bg: Color, textColor: Color, label: String) {
 
 @Composable
 private fun TableCard(table: CafeTable, order: Order?, onClick: () -> Unit) {
-    val isOccupied = table.status == "occupied"
-    val isCourtesy = table.status == "courtesy"
+    // Derivar estado desde la orden activa, no del campo status de la BD
+    val isOccupied = order != null
 
-    val bgColor = when {
-        isCourtesy -> Color(0xFFFFF8E6)
-        isOccupied -> Color(0xFFFDF2F2)
-        else       -> Color(0xFFF2FBF2)
-    }
-    val borderColor = when {
-        isCourtesy -> AppColors.PrimaryLight
-        isOccupied -> AppColors.Expense.copy(alpha = 0.4f)
-        else       -> AppColors.CourtesyGreen.copy(alpha = 0.5f)
-    }
-    val numberColor = when {
-        isCourtesy -> AppColors.PrimaryDark
-        isOccupied -> AppColors.Expense
-        else       -> AppColors.CourtesyGreen
-    }
+    val bgColor    = if (isOccupied) Color(0xFFFDF2F2) else Color(0xFFF2FBF2)
+    val borderColor = if (isOccupied) AppColors.Expense.copy(alpha = 0.4f) else AppColors.CourtesyGreen.copy(alpha = 0.5f)
+    val numberColor = if (isOccupied) AppColors.Expense else AppColors.CourtesyGreen
 
     Card(
         modifier = Modifier
@@ -199,11 +187,7 @@ private fun TableCard(table: CafeTable, order: Order?, onClick: () -> Unit) {
             Column {
                 // Estado
                 Text(
-                    text = when {
-                        isCourtesy -> "Cortesía"
-                        isOccupied -> "Ocupada"
-                        else       -> "Libre"
-                    },
+                    text = if (isOccupied) "Ocupada" else "Libre",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = numberColor

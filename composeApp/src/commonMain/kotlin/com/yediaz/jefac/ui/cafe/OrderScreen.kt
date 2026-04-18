@@ -38,6 +38,8 @@ fun OrderScreen(
     session: Int = 0,
     onNavigateBack: () -> Unit = {}
 ) {
+    var showCloseDialog by remember { mutableStateOf(false) }
+
     val viewModel: OrderViewModel = viewModel(
         key = "${tableId.ifBlank { appointmentId ?: "appt" }}_$session",
         factory = OrderViewModel.Factory(user.business_id, tableId.ifBlank { null }, tableNumber, existingOrderId, appointmentId, clientName)
@@ -112,7 +114,7 @@ fun OrderScreen(
                         Text("Agregar", color = AppColors.Primary, fontSize = 14.sp)
                     }
                     Button(
-                        onClick = { viewModel.handleIntent(OrderIntent.CloseOrder) },
+                        onClick = { showCloseDialog = true },
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
@@ -165,6 +167,74 @@ fun OrderScreen(
                 }
             }
         }
+    }
+
+    // Dialog de confirmación de cobro
+    if (showCloseDialog) {
+        val courtesyItems = uiState.items.filter { it.isCourtesy }
+        val paidItems     = uiState.items.filter { !it.isCourtesy }
+
+        AlertDialog(
+            onDismissRequest = { showCloseDialog = false },
+            containerColor = AppColors.BgCard,
+            title = {
+                Text("Cobro de la orden", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    paidItems.forEach { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(item.productName, fontSize = 13.sp, color = AppColors.TextDark)
+                            Text("$${item.unitPrice.toLong()}", fontSize = 13.sp, color = AppColors.TextDark)
+                        }
+                    }
+                    if (courtesyItems.isNotEmpty()) {
+                        HorizontalDivider(color = AppColors.Border, thickness = 0.5.dp)
+                        courtesyItems.forEach { item ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("🎁 ${item.productName}", fontSize = 13.sp, color = AppColors.CourtesyGreen)
+                                Text("Sin cobro", fontSize = 12.sp, color = AppColors.CourtesyGreen)
+                            }
+                        }
+                    }
+                    HorizontalDivider(color = AppColors.Border, thickness = 0.5.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total a cobrar", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
+                        Text(
+                            "$${uiState.total.toLong()}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.Primary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCloseDialog = false
+                        viewModel.handleIntent(OrderIntent.CloseOrder)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                ) {
+                    Text("Confirmar cobro", color = AppColors.OnPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseDialog = false }) {
+                    Text("Cancelar", color = AppColors.TextMuted)
+                }
+            }
+        )
     }
 
     // Product Selector Bottom Sheet
