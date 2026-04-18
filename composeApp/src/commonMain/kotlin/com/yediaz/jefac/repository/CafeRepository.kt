@@ -24,7 +24,7 @@ class CafeRepository {
     // ─────────────────────────────────────────
     suspend fun getTables(businessId: String): Result<List<CafeTable>> {
         return try {
-            val response = supabase.postgrest["tables"]
+            val response = supabase.postgrest["cafe_tables"]
                 .select {
                     filter { eq("business_id", businessId) }
                     order("table_number", SortOrder.ASCENDING)
@@ -37,7 +37,7 @@ class CafeRepository {
 
     suspend fun updateTableStatus(tableId: String, status: String): Result<Unit> {
         return try {
-            supabase.postgrest["tables"]
+            supabase.postgrest["cafe_tables"]
                 .update({ set("status", status) }) {
                     filter { eq("id", tableId) }
                 }

@@ -45,12 +45,13 @@ class CafeViewModel(
             val ordersResult = repository.getActiveOrders(businessId)
 
             val tables = if (tablesResult is Result.Success) tablesResult.data else emptyList()
+            val error = if (tablesResult is Result.Error) tablesResult.message else null
             val ordersMap = if (ordersResult is Result.Success) {
                 ordersResult.data.filter { it.table_id != null }
                     .associateBy { it.table_id!! }
             } else emptyMap()
 
-            _uiState.update { it.copy(isLoading = false, tables = tables, activeOrders = ordersMap) }
+            _uiState.update { it.copy(isLoading = false, tables = tables, activeOrders = ordersMap, error = error) }
         }
     }
 

@@ -72,6 +72,19 @@ fun CafeScreen(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AppColors.Primary)
             }
+        } else if (uiState.error != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Text("Error al cargar mesas", fontSize = 15.sp, color = AppColors.Expense)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(uiState.error ?: "", fontSize = 12.sp, color = AppColors.TextMuted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { viewModel.handleIntent(CafeIntent.LoadTables) },
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                    ) { Text("Reintentar", color = AppColors.OnPrimary) }
+                }
+            }
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
