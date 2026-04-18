@@ -35,10 +35,11 @@ fun OrderScreen(
     existingOrderId: String?,
     appointmentId: String? = null,
     clientName: String = "",
+    session: Int = 0,
     onNavigateBack: () -> Unit = {}
 ) {
     val viewModel: OrderViewModel = viewModel(
-        key = tableId.ifBlank { appointmentId ?: "appt" },
+        key = "${tableId.ifBlank { appointmentId ?: "appt" }}_$session",
         factory = OrderViewModel.Factory(user.business_id, tableId.ifBlank { null }, tableNumber, existingOrderId, appointmentId, clientName)
     )
     val uiState by viewModel.uiState.collectAsState()

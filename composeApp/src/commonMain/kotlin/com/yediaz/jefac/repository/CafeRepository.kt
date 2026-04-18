@@ -202,22 +202,31 @@ class CafeRepository {
 
     suspend fun closeOrder(orderId: String, tableId: String?, total: Double, businessId: String): Result<Unit> {
         return try {
+            // 1. Marcar orden como pagada (crítico — falla si no sale)
             supabase.postgrest["orders"]
                 .update({ set("status", "paid") }) {
                     filter { eq("id", orderId) }
                 }
-            if (tableId != null) updateTableStatus(tableId, "free")
 
-            if (total > 0) {
-                supabase.postgrest["transactions"].insert(buildJsonObject {
-                    put("business_id", businessId)
-                    put("order_id", orderId)
-                    put("type", "income")
-                    put("category", "cafe")
-                    put("amount", total)
-                    put("description", "Orden cafetería cerrada")
-                })
-            }
+            // 2. Liberar mesa (no crítico — no falla la operación si hay error de RLS)
+            try {
+                if (tableId != null) updateTableStatus(tableId, "free")
+            } catch (_: Exception) {}
+
+            // 3. Registrar transacción (no crítico)
+            try {
+                if (total > 0) {
+                    supabase.postgrest["transactions"].insert(buildJsonObject {
+                        put("business_id", businessId)
+                        put("order_id", orderId)
+                        put("type", "income")
+                        put("category", "cafe")
+                        put("amount", total)
+                        put("description", "Orden cafetería cerrada")
+                    })
+                }
+            } catch (_: Exception) {}
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al cerrar orden")
