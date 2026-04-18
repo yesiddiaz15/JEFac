@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun HomeScreen(
     user: AppUser,
+    refreshKey: Int = 0,
     onNavigateToNewAppointment: () -> Unit = {},
     onNavigateToNewOrder: () -> Unit = {}
 ) {
@@ -59,6 +60,10 @@ fun HomeScreen(
         factory = HomeViewModelFactory(user.business_id)
     )
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(refreshKey) {
+        if (refreshKey > 0) viewModel.handleIntent(HomeIntent.LoadDashboard)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->

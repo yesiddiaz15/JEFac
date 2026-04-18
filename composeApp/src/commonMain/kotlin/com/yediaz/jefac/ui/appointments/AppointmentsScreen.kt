@@ -62,6 +62,7 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun AppointmentsScreen(
     user: AppUser,
+    refreshKey: Int = 0,
     onNavigateToNewAppointment: () -> Unit = {},
     onNavigateToDetail: (String) -> Unit = {}
 ) {
@@ -69,6 +70,10 @@ fun AppointmentsScreen(
         factory = AppointmentListViewModel.Factory(user.business_id)
     )
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(refreshKey) {
+        if (refreshKey > 0) viewModel.handleIntent(AppointmentListIntent.LoadAppointments)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collectLatest { effect ->

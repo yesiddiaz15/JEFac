@@ -10,6 +10,9 @@ import com.yediaz.jefac.ui.cafe.ActiveAppointmentUi
 import com.yediaz.jefac.ui.cafe.OrderItemUi
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order as SortOrder
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -216,6 +219,8 @@ class CafeRepository {
             // 3. Registrar transacción (no crítico)
             try {
                 if (total > 0) {
+                    val today = Clock.System.now()
+                        .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                     supabase.postgrest["transactions"].insert(buildJsonObject {
                         put("business_id", businessId)
                         put("order_id", orderId)
@@ -223,6 +228,7 @@ class CafeRepository {
                         put("category", "cafe")
                         put("amount", total)
                         put("description", "Orden cafetería cerrada")
+                        put("date", today)
                     })
                 }
             } catch (_: Exception) {}

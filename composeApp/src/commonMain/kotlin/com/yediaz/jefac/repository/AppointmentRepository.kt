@@ -242,7 +242,6 @@ class AppointmentRepository {
                 )
             }
 
-            registerAppointmentTransaction(result)
             Result.Success(result)
 
         } catch (e: Exception) {
@@ -259,11 +258,19 @@ class AppointmentRepository {
     ): Result<Unit> {
         return try {
             supabase.postgrest["appointments"]
-                .update({
-                    set("status", status)
-                }) {
+                .update({ set("status", status) }) {
                     filter { eq("id", id) }
                 }
+
+            // Registrar transacción solo al completar
+            if (status == "completed") {
+                val apptResult = getAppointmentById(id)
+                if (apptResult is Result.Success) {
+                    val txError = registerAppointmentTransaction(apptResult.data)
+                    if (txError != null) return Result.Error("Cita completada pero error al registrar transacción: $txError")
+                }
+            }
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e.message ?: "Error al actualizar la cita")
@@ -403,10 +410,12 @@ class AppointmentRepository {
     // ─────────────────────────────────────────
     // Helpers privados
     // ─────────────────────────────────────────
-    private suspend fun registerAppointmentTransaction(appointment: Appointment) {
-        try {
+    private suspend fun registerAppointmentTransaction(appointment: Appointment): String? {
+        return try {
+            val today = Clock.System.now()
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             val category = when {
-                appointment.service_id.isNotEmpty() -> "nail_spa" // se actualiza con el servicio real
+                appointment.service_id.isNotEmpty() -> "nail_spa"
                 else -> "other"
             }
             supabase.postgrest["transactions"].insert(
@@ -417,9 +426,9 @@ class AppointmentRepository {
                     put("category", category)
                     put("amount", appointment.final_price)
                     put("description", "Cita completada")
+                    put("date", today)
                 }
             )
-
             // Registrar comisión si hay profesional
             if (appointment.professional_earn > 0) {
                 supabase.postgrest["transactions"].insert(
@@ -430,11 +439,13 @@ class AppointmentRepository {
                         put("category", "commission")
                         put("amount", appointment.professional_earn)
                         put("description", "Comisión profesional")
+                        put("date", today)
                     }
                 )
             }
+            null // sin error
         } catch (e: Exception) {
-            // No romper el flujo si falla el registro de transacción
+            e.message // retorna el error para que el caller lo vea
         }
     }
 
