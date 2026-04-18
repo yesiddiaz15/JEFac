@@ -18,7 +18,6 @@ class AuthRepository {
             }
 
             val userId = supabase.auth.currentUserOrNull()?.id
-            println("DEBUG userId: $userId")
 
             if (userId == null) {
                 return Result.Error("userId es null")
@@ -29,7 +28,6 @@ class AuthRepository {
                 .select { filter { eq("id", userId) } }
                 .data
 
-            println("DEBUG raw response: $responseText")
 
             val users = Json {
                 ignoreUnknownKeys = true
@@ -39,12 +37,10 @@ class AuthRepository {
             val user = users.firstOrNull()
                 ?: return Result.Error("Usuario no encontrado en la tabla")
 
-            println("DEBUG user: $user")
 
             Result.Success(user)
 
         } catch (e: Exception) {
-            println("DEBUG error: ${e.cause}: ${e.message}")
             Result.Error(e.message ?: "Error desconocido")
         }
     }

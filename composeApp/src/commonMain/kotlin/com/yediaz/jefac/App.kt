@@ -19,6 +19,7 @@ fun App() {
             "admin" -> AdminNavigation(user = currentUser!!, onSignOut = { currentUser = null })
             "professional" -> ProfessionalNavigation(user = currentUser!!, onSignOut = { currentUser = null })
             "cafe" -> CafeNavigation(user = currentUser!!, onSignOut = { currentUser = null })
+            else -> LoginScreen(onNavigateByRole = { user -> currentUser = user })
         }
     }
 }
