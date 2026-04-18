@@ -117,11 +117,11 @@ class HomeRepository {
 
             val summaries = tables.map { table ->
                 val total = getTableCurrentTotal(table.id)
-
+                // Derivar estado desde orden activa, igual que CafeScreen
                 CafeTableSummary(
                     id = table.id,
                     tableNumber = table.table_number,
-                    status = table.status,
+                    status = if (total > 0) "occupied" else "free",
                     currentTotal = total
                 )
             }
