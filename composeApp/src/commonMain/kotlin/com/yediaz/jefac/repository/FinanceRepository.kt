@@ -79,7 +79,7 @@ class FinanceRepository {
     ): Result<Unit> {
         return try {
             val today = Clock.System.now()
-                .toLocalDateTime(TimeZone.UTC).date.toString()
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             supabase.postgrest["transactions"].insert(buildJsonObject {
                 put("business_id", businessId)
                 put("type", "expense")
@@ -98,7 +98,7 @@ class FinanceRepository {
     private fun inPeriod(dateStr: String, period: FinancePeriod): Boolean {
         return try {
             val date = dateStr.substring(0, 10)
-            val today = Clock.System.now().toLocalDateTime(TimeZone.UTC).date
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
             when (period) {
                 FinancePeriod.TODAY -> date == today.toString()
                 FinancePeriod.WEEK -> {

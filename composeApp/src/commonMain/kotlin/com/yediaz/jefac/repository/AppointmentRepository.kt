@@ -33,7 +33,7 @@ class AppointmentRepository {
         businessId: String
     ): Result<List<AppointmentItemUi>> {
         val today = Clock.System.now()
-            .toLocalDateTime(TimeZone.UTC).date
+            .toLocalDateTime(TimeZone.currentSystemDefault()).date
         return getAppointmentsForDate(today.toString(), businessId)
     }
 
@@ -45,7 +45,7 @@ class AppointmentRepository {
     ): Result<List<AppointmentItemUi>> {
         return try {
             val today = Clock.System.now()
-                .toLocalDateTime(TimeZone.UTC).date
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date
             // Lunes de la semana actual (ordinal: Mon=0 … Sun=6)
             val weekStart = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
             val weekEnd   = weekStart.plus(6, DateTimeUnit.DAY)
@@ -413,7 +413,7 @@ class AppointmentRepository {
     private suspend fun registerAppointmentTransaction(appointment: Appointment): String? {
         return try {
             val today = Clock.System.now()
-                .toLocalDateTime(TimeZone.UTC).date.toString()
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             val category = when {
                 appointment.service_id.isNotEmpty() -> "nail_spa"
                 else -> "other"

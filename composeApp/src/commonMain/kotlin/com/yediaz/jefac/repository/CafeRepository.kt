@@ -220,7 +220,7 @@ class CafeRepository {
             try {
                 if (total > 0) {
                     val today = Clock.System.now()
-                        .toLocalDateTime(TimeZone.UTC).date.toString()
+                        .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                     supabase.postgrest["transactions"].insert(buildJsonObject {
                         put("business_id", businessId)
                         put("order_id", orderId)
