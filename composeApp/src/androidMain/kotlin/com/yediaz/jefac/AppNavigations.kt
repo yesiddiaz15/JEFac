@@ -55,8 +55,9 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showNewAppointment by remember { mutableStateOf(false) }
     var detailAppointmentId by remember { mutableStateOf<String?>(null) }
+    var cafeOrderState by remember { mutableStateOf<Triple<String, Int, String?>?>(null) }
 
-    // Nueva cita aparece encima de todo, sin bottom nav
+    // Nueva cita
     if (showNewAppointment) {
         NewAppointmentScreen(
             user = user,
@@ -66,11 +67,24 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
         return
     }
 
+    // Detalle de cita
     detailAppointmentId?.let { id ->
         AppointmentDetailScreen(
             user = user,
             appointmentId = id,
             onNavigateBack = { detailAppointmentId = null }
+        )
+        return
+    }
+
+    // Orden de cafetería
+    cafeOrderState?.let { (tableId, tableNumber, orderId) ->
+        com.yediaz.jefac.ui.cafe.OrderScreen(
+            user = user,
+            tableId = tableId,
+            tableNumber = tableNumber,
+            existingOrderId = orderId,
+            onNavigateBack = { cafeOrderState = null }
         )
         return
     }
@@ -127,7 +141,12 @@ fun AdminNavigation(user: AppUser, onSignOut: () -> Unit) {
                     onNavigateToDetail = { id -> detailAppointmentId = id }
                 )
 
-                2 -> PlaceholderScreen("Cafetería", user, onSignOut)
+                2 -> com.yediaz.jefac.ui.cafe.CafeScreen(
+                    user = user,
+                    onNavigateToOrder = { tableId, tableNumber, orderId ->
+                        cafeOrderState = Triple(tableId, tableNumber, orderId)
+                    }
+                )
                 3 -> PlaceholderScreen("Finanzas", user, onSignOut)
             }
         }
