@@ -333,7 +333,7 @@ private fun OrderItemCard(
 }
 
 @Composable
-private fun ProductSelectorSheet(
+fun ProductSelectorSheet(
     products: List<Product>,
     onDismiss: () -> Unit,
     onSelect: (Product, Boolean) -> Unit

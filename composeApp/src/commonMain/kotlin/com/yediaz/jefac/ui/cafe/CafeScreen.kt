@@ -115,27 +115,6 @@ fun CafeScreen(
                     }
                 }
 
-                // ── Citas activas ───────────────
-                if (uiState.activeAppointments.isNotEmpty()) {
-                    item {
-                        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp)) {
-                            Text(
-                                "CITAS EN CURSO",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = AppColors.TextMuted,
-                                letterSpacing = 0.7.sp
-                            )
-                            Text("Toca para agregar productos a su cuenta", fontSize = 11.sp, color = AppColors.TextLight)
-                        }
-                    }
-                    items(uiState.activeAppointments) { appt ->
-                        AppointmentOrderCard(
-                            appointment = appt,
-                            onClick = { viewModel.handleIntent(CafeIntent.SelectAppointment(appt)) }
-                        )
-                    }
-                }
             }
         }
     }
