@@ -104,7 +104,7 @@ fun FinanceScreen(
                 item {
                     Column(
                         modifier = Modifier.padding(
-                            start = 20.dp, end = 20.dp, top = 52.dp, bottom = 12.dp
+                            start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp
                         )
                     ) {
                         Text(

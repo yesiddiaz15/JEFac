@@ -162,7 +162,7 @@ fun AppointmentsScreen(
 private fun AppointmentsHeader(uiState: AppointmentListUiState) {
     val monthName = monthName(uiState.calendarMonth)
     Column(
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 8.dp)
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
     ) {
         Text(
             text = "Agenda",

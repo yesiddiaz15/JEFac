@@ -52,7 +52,7 @@ fun CafeScreen(
             .background(AppColors.BgMain)
     ) {
         // Header
-        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 16.dp)) {
+        Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp)) {
             Text("Cafetería", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = AppColors.TextDark)
             Text("Mesas", fontSize = 12.sp, color = AppColors.TextMuted, modifier = Modifier.padding(top = 2.dp))
         }

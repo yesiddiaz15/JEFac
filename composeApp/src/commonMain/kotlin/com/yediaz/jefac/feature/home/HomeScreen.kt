@@ -106,7 +106,7 @@ private fun HeaderSection(user: AppUser, viewModel: HomeViewModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 8.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
