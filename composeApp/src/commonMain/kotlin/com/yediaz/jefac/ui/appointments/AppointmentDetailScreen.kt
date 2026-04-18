@@ -157,7 +157,11 @@ fun AppointmentDetailScreen(
                 uiState.pricing?.let { pricing ->
                     item {
                         SectionLabel("Desglose de pago")
-                        PricingCard(pricing = pricing, deposit = uiState.deposit)
+                        PricingCard(
+                            pricing   = pricing,
+                            deposit   = uiState.deposit,
+                            cafeTotal = uiState.cafeItems.filter { !it.isCourtesy }.sumOf { it.unitPrice }
+                        )
                     }
                 }
 
@@ -357,8 +361,9 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0) {
-    val balance = pricing.finalPrice - deposit
+private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0, cafeTotal: Double = 0.0) {
+    val grandTotal = pricing.finalPrice + cafeTotal
+    val balance    = grandTotal - deposit
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -400,17 +405,33 @@ private fun PricingCard(pricing: PricingResult, deposit: Double = 0.0) {
                 formatCurrency(pricing.businessEarn),
                 AppColors.BusinessEarn
             )
-            if (deposit > 0) {
+
+            // Cafetería + totales
+            if (cafeTotal > 0 || deposit > 0) {
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = AppColors.Border,
                     thickness = 0.5.dp
                 )
+            }
+            if (cafeTotal > 0) {
+                PricingRow("Cita", formatCurrency(pricing.finalPrice), AppColors.TextDark)
+                PricingRow("Cafetería", formatCurrency(cafeTotal), AppColors.TextDark)
                 PricingRow(
-                    "Abono recibido",
-                    formatCurrency(deposit),
-                    AppColors.CourtesyGreen
+                    label = "Total a cobrar",
+                    value = formatCurrency(grandTotal),
+                    valueColor = AppColors.Primary,
+                    isBold = true,
+                    valueFontSize = 16
                 )
+            }
+            if (deposit > 0) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    color = AppColors.Border,
+                    thickness = 0.5.dp
+                )
+                PricingRow("Abono recibido", formatCurrency(deposit), AppColors.CourtesyGreen)
                 PricingRow(
                     label = "Saldo pendiente",
                     value = formatCurrency(balance.coerceAtLeast(0.0)),
