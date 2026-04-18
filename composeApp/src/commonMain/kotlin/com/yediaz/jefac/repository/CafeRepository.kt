@@ -203,7 +203,7 @@ class CafeRepository {
     suspend fun closeOrder(orderId: String, tableId: String?, total: Double, businessId: String): Result<Unit> {
         return try {
             supabase.postgrest["orders"]
-                .update({ set("status", "closed") }) {
+                .update({ set("status", "paid") }) {
                     filter { eq("id", orderId) }
                 }
             if (tableId != null) updateTableStatus(tableId, "free")
@@ -234,7 +234,7 @@ class CafeRepository {
             if (all is Result.Error) return Result.Error(all.message)
 
             val active = (all as Result.Success).data
-                .filter { it.status == "in_progress" || it.status == "confirmed" || it.status == "pending" }
+                .filter { it.status == "in_progress" || it.status == "confirmed" }
                 .map { ActiveAppointmentUi(id = it.id, clientName = it.clientName, serviceName = it.serviceName) }
 
             Result.Success(active)
