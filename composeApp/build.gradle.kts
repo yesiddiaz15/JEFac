@@ -16,6 +16,10 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -30,6 +34,9 @@ kotlin {
             baseName = "ComposeApp"
             isStatic = true
         }
+        iosTarget.compilations.getByName("main").defaultSourceSet.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
     }
 
     sourceSets {
@@ -37,6 +44,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.android)
+            implementation(libs.androidx.core.splashscreen)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
