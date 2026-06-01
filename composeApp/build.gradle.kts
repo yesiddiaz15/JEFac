@@ -1,11 +1,4 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.Properties
-
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localProperties.load(localPropertiesFile.inputStream())
-}
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -16,13 +9,9 @@ plugins {
 }
 
 kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
-    }
-
     androidTarget {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 
@@ -33,18 +22,17 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
-        }
-        iosTarget.compilations.getByName("main").defaultSourceSet.dependencies {
-            implementation(libs.ktor.client.darwin)
+            linkerOpts.add("-lsqlite3")
         }
     }
 
     sourceSets {
+        all{
+            languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
+        }
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.client.android)
-            implementation(libs.androidx.core.splashscreen)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -70,25 +58,13 @@ kotlin {
 android {
     namespace = "com.yediaz.jefac"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
-    buildFeatures {
-        buildConfig = true
-    }
+
     defaultConfig {
         applicationId = "com.yediaz.jefac"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
-        buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            "\"${localProperties["SUPABASE_URL"]}\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_KEY",
-            "\"${localProperties["SUPABASE_KEY"]}\""
-        )
     }
     packaging {
         resources {
@@ -101,8 +77,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
