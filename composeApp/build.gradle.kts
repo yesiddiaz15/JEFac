@@ -44,9 +44,6 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-            implementation(libs.postgrest.kt)
-            implementation(libs.auth.kt)
-            implementation(libs.realtime.kt)
             implementation(libs.material.icons.extended)
             implementation(libs.kotlinx.datetime)
         }
