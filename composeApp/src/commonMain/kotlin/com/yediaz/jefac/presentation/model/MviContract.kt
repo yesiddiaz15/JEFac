@@ -6,6 +6,8 @@ interface UiState {
 
 interface UiIntent
 
-interface UiEffect {
-    data class ShowSnackbar(val message: String, val actionLabel: String? = null) : UiEffect
+interface UiEffect
+
+sealed interface BaseEffect {
+    data class ShowSnackbar(val message: String, val actionLabel: String? = null) : BaseEffect
 }

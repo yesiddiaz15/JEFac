@@ -2,6 +2,8 @@ package com.yediaz.jefac
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import com.yediaz.jefac.di.dataModule
+import com.yediaz.jefac.di.domainModule
 import com.yediaz.jefac.di.presentationModule
 import com.yediaz.jefac.presentation.nav.NavigationWrapper
 import org.koin.core.context.startKoin
@@ -17,6 +19,6 @@ fun App() {
 fun initKoin(config: KoinAppDeclaration? = null) {
     startKoin {
         config?.invoke(this)
-        modules(presentationModule)
+        modules(dataModule, domainModule, presentationModule)
     }
 }

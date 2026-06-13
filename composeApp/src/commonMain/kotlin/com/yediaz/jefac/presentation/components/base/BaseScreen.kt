@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.yediaz.jefac.presentation.model.BaseEffect
 import com.yediaz.jefac.presentation.model.UiEffect
 import com.yediaz.jefac.presentation.model.UiIntent
 import com.yediaz.jefac.presentation.model.UiState
@@ -21,14 +22,20 @@ fun <S : UiState, I : UiIntent, E : UiEffect> BaseScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                is UiEffect.ShowSnackbar -> snackbarHostState.showSnackbar(
-                    message = effect.message,
-                    actionLabel = effect.actionLabel
-                )
+        viewModel.uiEffect.collect { effect ->
+            onEffect(effect)
+        }
+    }
 
-                else -> onEffect(effect)
+    LaunchedEffect(Unit) {
+        viewModel.baseEffect.collect { effect ->
+            when (effect) {
+                is BaseEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(
+                        message = effect.message,
+                        actionLabel = effect.actionLabel
+                    )
+                }
             }
         }
     }

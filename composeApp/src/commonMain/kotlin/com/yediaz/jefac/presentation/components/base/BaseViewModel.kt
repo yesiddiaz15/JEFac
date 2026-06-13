@@ -2,6 +2,7 @@ package com.yediaz.jefac.presentation.components.base
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yediaz.jefac.presentation.model.BaseEffect
 import com.yediaz.jefac.presentation.model.UiEffect
 import com.yediaz.jefac.presentation.model.UiIntent
 import com.yediaz.jefac.presentation.model.UiState
@@ -22,8 +23,11 @@ abstract class BaseViewModel<S : UiState, I : UiIntent, E : UiEffect>(
 
     private val _intent = MutableSharedFlow<I>()
 
-    private val _effect = Channel<E>(Channel.BUFFERED)
-    val effect = _effect.receiveAsFlow()
+    private val _uiEffect = Channel<E>(Channel.BUFFERED)
+    val uiEffect = _uiEffect.receiveAsFlow()
+
+    private val _baseEffect = Channel<BaseEffect>(Channel.BUFFERED)
+    val baseEffect = _baseEffect.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -47,7 +51,13 @@ abstract class BaseViewModel<S : UiState, I : UiIntent, E : UiEffect>(
 
     protected fun emitEffect(effect: E) {
         viewModelScope.launch {
-            _effect.send(effect)
+            _uiEffect.send(effect)
+        }
+    }
+
+    protected fun showSnackbar(message: String, actionLabel: String? = null) {
+        viewModelScope.launch {
+            _baseEffect.send(BaseEffect.ShowSnackbar(message, actionLabel))
         }
     }
 }

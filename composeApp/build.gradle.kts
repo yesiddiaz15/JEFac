@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.googleServices)
     kotlin("plugin.serialization") version "2.0.0"
 }
 
@@ -27,7 +28,7 @@ kotlin {
     }
 
     sourceSets {
-        all{
+        all {
             languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
         }
         androidMain.dependencies {
@@ -35,6 +36,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.splashscreen)
             implementation(libs.koin.android)
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.auth.android)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -55,6 +58,9 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
+
+            // Firebase KMP
+            implementation(libs.firebase.auth)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

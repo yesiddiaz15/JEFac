@@ -6,11 +6,15 @@ import com.yediaz.jefac.presentation.model.UiState
 
 data class LoginState(
     override val isLoading: Boolean = false,
+    val email: String = "",
+    val password: String = "",
     val error: String? = null
 ) : UiState
 
 sealed interface LoginIntent : UiIntent {
-    data object OnGetStartedClicked : LoginIntent
+    data class OnEmailChanged(val email: String) : LoginIntent
+    data class OnPasswordChanged(val password: String) : LoginIntent
+    data object OnLoginClicked : LoginIntent
 }
 
 sealed interface LoginEffect : UiEffect {
