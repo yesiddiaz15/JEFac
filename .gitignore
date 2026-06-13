@@ -19,3 +19,5 @@ captures
 node_modules/
 **/SupabaseConfig.android.kt
 **/SupabaseConfig.ios.kt
+**/google-services.json
+**/GoogleService-Info.plist
