@@ -21,3 +21,8 @@ node_modules/
 **/SupabaseConfig.ios.kt
 **/google-services.json
 **/GoogleService-Info.plist
+
+# iOS
+iosApp/Pods/
+iosApp/.xcode.env.local
+iosApp/iosApp.xcworkspace/xcuserdata/
