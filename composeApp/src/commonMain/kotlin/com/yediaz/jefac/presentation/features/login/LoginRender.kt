@@ -1,32 +1,77 @@
 package com.yediaz.jefac.presentation.features.login
 
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
+import com.yediaz.jefac.presentation.components.base.BaseScreen
+import com.yediaz.jefac.presentation.components.base.BaseUi
+import com.yediaz.jefac.presentation.model.TopBarConfig
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun OnboardingScreen(
-    onNavigateToFirstPeriod: () -> Unit
+fun LoginScreen(
+    viewModel: LoginViewModel = koinViewModel(),
+    onNavigateBack: () -> Unit,
 ) {
-    OnboardingContent()
+    BaseScreen(
+        viewModel = viewModel,
+        onEffect = { effect ->
+            when (effect) {
+                is LoginEffect.NavigateToFirstPeriod -> onNavigateBack()
+            }
+        }
+    ) { state, snackbarHostState, onIntent ->
+        LoginContent(
+            state = state,
+            snackbarHostState = snackbarHostState,
+            onIntent = onIntent
+        )
+    }
 }
 
-
 @Composable
-fun OnboardingContent() {
+fun LoginContent(
+    state: LoginState,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onIntent: (LoginIntent) -> Unit
+) {
+    BaseUi(
+        state = state,
+        onIntent = onIntent,
+        topBarConfig = TopBarConfig(
+            title = "Login",
+            showBackButton = false
+        ),
+        snackbarHostState = snackbarHostState
+    ) { state, paddingValues, onIntent ->
+        Column {
 
+        }
+    }
 }
 
 
 @Preview
 @Composable
-fun OnboardingPreview() {
+private fun LoginContentPreview() {
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            OnboardingContent()
-        }
+        LoginContent(
+            state = LoginState(),
+            onIntent = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LoginContentLoadingPreview() {
+    MaterialTheme {
+        LoginContent(
+            state = LoginState(isLoading = true),
+            onIntent = {}
+        )
     }
 }
