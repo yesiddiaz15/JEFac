@@ -18,5 +18,5 @@ sealed interface LoginIntent : UiIntent {
 }
 
 sealed interface LoginEffect : UiEffect {
-    data object NavigateToFirstPeriod : LoginEffect
+    data object NavigateToDashboard : LoginEffect
 }

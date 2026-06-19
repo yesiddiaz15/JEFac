@@ -46,7 +46,7 @@ fun LoginScreen(
         viewModel = viewModel,
         onEffect = { effect ->
             when (effect) {
-                is LoginEffect.NavigateToFirstPeriod -> onNavigateToDashboard()
+                is LoginEffect.NavigateToDashboard -> onNavigateToDashboard()
             }
         }
     ) { state, snackbarHostState, onIntent ->
