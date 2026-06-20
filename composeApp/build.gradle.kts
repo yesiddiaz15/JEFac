@@ -61,6 +61,7 @@ kotlin {
 
             // Firebase KMP
             implementation(libs.firebase.auth)
+            implementation(libs.firebase.firestore)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
