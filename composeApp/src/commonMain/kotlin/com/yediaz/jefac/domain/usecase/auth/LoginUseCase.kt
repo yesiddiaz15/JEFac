@@ -1,4 +1,4 @@
-package com.yediaz.jefac.domain.usecase
+package com.yediaz.jefac.domain.usecase.auth
 
 import com.yediaz.jefac.domain.model.DomainResult
 import com.yediaz.jefac.domain.repository.AuthRepository
@@ -12,7 +12,7 @@ class LoginUseCase(
         if (!Validator.isValidEmail(email)) {
             return DomainResult.Error("Formato de correo electrónico inválido")
         }
-        
+
         if (!Validator.isValidPassword(password)) {
             return DomainResult.Error("La contraseña debe tener al menos 6 caracteres")
         }

@@ -2,7 +2,7 @@ package com.yediaz.jefac.presentation.features.login
 
 import androidx.lifecycle.viewModelScope
 import com.yediaz.jefac.domain.model.DomainResult
-import com.yediaz.jefac.domain.usecase.LoginUseCase
+import com.yediaz.jefac.domain.usecase.auth.LoginUseCase
 import com.yediaz.jefac.presentation.components.base.BaseViewModel
 import kotlinx.coroutines.launch
 
