@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yediaz.jefac.presentation.components.base.BaseScreen
 import com.yediaz.jefac.presentation.components.base.BaseUi
@@ -30,7 +31,7 @@ fun DashboardScreen(
                 is DashboardEffect.NavigateToLogin -> onNavigateToLogin()
             }
         }
-    ) { state, snackbarHostState, onIntent ->
+    ) { state, _, onIntent ->
         DashboardContent(
             state = state,
             onIntent = onIntent
@@ -70,5 +71,27 @@ fun DashboardContent(
                 Text("Logout")
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun DashboardContentPreview() {
+    MaterialTheme {
+        DashboardContent(
+            state = DashboardState(userName = "Juan Felipe"),
+            onIntent = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun DashboardContentLoadingPreview() {
+    MaterialTheme {
+        DashboardContent(
+            state = DashboardState(isLoading = true),
+            onIntent = {}
+        )
     }
 }
