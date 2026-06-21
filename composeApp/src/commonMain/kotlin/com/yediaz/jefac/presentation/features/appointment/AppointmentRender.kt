@@ -12,6 +12,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,10 +35,15 @@ fun AppointmentScreen(
         viewModel = viewModel,
         onEffect = { effect ->
             when (effect) {
-                AppointmentEffect.AppointmentSaved -> Unit // ya se maneja con snackbar
+                AppointmentEffect.AppointmentSaved -> Unit // Revisar, utilizar snackbar Global?
             }
         }
     ) { state, _, onIntent ->
+
+        LaunchedEffect(Unit) {
+            onIntent(AppointmentIntent.LoadAppointments)
+        }
+
         AppointmentContent(
             state = state,
             onIntent = onIntent,

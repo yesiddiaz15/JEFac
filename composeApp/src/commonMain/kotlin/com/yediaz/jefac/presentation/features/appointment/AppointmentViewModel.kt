@@ -21,6 +21,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class AppointmentViewModel(
     private val getAppointmentsByDateRangeUseCase: GetAppointmentsByDateRangeUseCase,
     private val createAppointmentUseCase: CreateAppointmentUseCase,
@@ -31,15 +32,10 @@ class AppointmentViewModel(
     initialState = AppointmentState()
 ) {
 
-    init {
-        emitIntent(AppointmentIntent.LoadAppointments)
-        loadCatalogs()
-    }
-
     override fun handleIntent(intent: AppointmentIntent) {
         when (intent) {
-            AppointmentIntent.LoadAppointments -> loadTodayAppointments()
-            AppointmentIntent.OnCreateClicked -> showForm()
+            AppointmentIntent.LoadAppointments -> loadAppointments()
+            AppointmentIntent.OnCreateClicked -> onCreateClicked()
             AppointmentIntent.OnDismissForm -> hideForm()
 
             is AppointmentIntent.OnEmployeeSelected ->
@@ -66,15 +62,49 @@ class AppointmentViewModel(
         }
     }
 
-    private fun loadCatalogs() {
+
+    private fun loadAppointments() {
+        val (start, end) = dateRangeMillis(daysAhead = 7)
+
+        updateState { copy(isLoading = true) }
+
+        getAppointmentsByDateRangeUseCase(start, end)
+            .onEach { result ->
+                when (result) {
+                    is DomainResult.Success -> updateState {
+                        copy(isLoading = false, appointments = result.data)
+                    }
+                    is DomainResult.Error -> {
+                        updateState { copy(isLoading = false) }
+                        showSnackbar(result.message)
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+
+    private fun onCreateClicked() {
+        updateState { copy(isFormVisible = true, formError = null) }
+        loadCatalogsIfNeeded()
+    }
+
+    private fun loadCatalogsIfNeeded() {
+        val current = uiState.value
+
+        if (current.employees.isNotEmpty() && current.services.isNotEmpty()) return
+
+        updateState { copy(isLoading = true) }
+
         getActiveEmployeesUseCase()
             .onEach { result ->
                 when (result) {
                     is DomainResult.Success ->
-                        updateState { copy(employees = result.data) }
-
-                    is DomainResult.Error ->
+                        updateState { copy(employees = result.data, isLoading = false) }
+                    is DomainResult.Error -> {
+                        updateState { copy(isLoading = false) }
                         showSnackbar(result.message)
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -84,37 +114,11 @@ class AppointmentViewModel(
                 when (result) {
                     is DomainResult.Success ->
                         updateState { copy(services = result.data) }
-
                     is DomainResult.Error ->
                         showSnackbar(result.message)
                 }
             }
             .launchIn(viewModelScope)
-    }
-
-    private fun loadTodayAppointments() {
-        val (start, end) = todayRangeMillis()
-
-        getAppointmentsByDateRangeUseCase(start, end)
-            .onEach { result ->
-                when (result) {
-                    is DomainResult.Success -> updateState {
-                        copy(isLoading = false, appointments = result.data)
-                    }
-
-                    is DomainResult.Error -> {
-                        updateState { copy(isLoading = false) }
-                        showSnackbar(result.message)
-                    }
-                }
-            }
-            .launchIn(viewModelScope)
-
-        updateState { copy(isLoading = true) }
-    }
-
-    private fun showForm() {
-        updateState { copy(isFormVisible = true, formError = null) }
     }
 
     private fun hideForm() {
@@ -145,8 +149,7 @@ class AppointmentViewModel(
     private fun saveAppointment() {
         val currentState = uiState.value
 
-        val employee =
-            currentState.employees.firstOrNull { it.id == currentState.selectedEmployeeId }
+        val employee = currentState.employees.firstOrNull { it.id == currentState.selectedEmployeeId }
         val service = currentState.services.firstOrNull { it.id == currentState.selectedServiceId }
 
         val appointment = Appointment(
@@ -171,8 +174,8 @@ class AppointmentViewModel(
                     hideForm()
                     showSnackbar("Cita agendada correctamente")
                     emitEffect(AppointmentEffect.AppointmentSaved)
+                    loadAppointments()
                 }
-
                 is DomainResult.Error -> {
                     updateState { copy(isSaving = false, formError = result.message) }
                 }
@@ -189,16 +192,18 @@ class AppointmentViewModel(
         }
     }
 
-    @OptIn(ExperimentalTime::class)
-    private fun todayRangeMillis(): Pair<Long, Long> {
+    /**
+     * Rango de fechas desde hoy hasta `daysAhead` días en el futuro.
+     */
+    private fun dateRangeMillis(daysAhead: Int): Pair<Long, Long> {
         val timeZone = TimeZone.currentSystemDefault()
         val today = Clock.System.now().toLocalDateTime(timeZone).date
 
-        val startOfDay = today.atStartOfDayIn(timeZone).toEpochMilliseconds()
-        val endOfDay = today.plus(DatePeriod(days = 1))
+        val startOfToday = today.atStartOfDayIn(timeZone).toEpochMilliseconds()
+        val endOfRange = today.plus(DatePeriod(days = daysAhead))
             .atStartOfDayIn(timeZone)
             .toEpochMilliseconds()
 
-        return startOfDay to endOfDay
+        return startOfToday to endOfRange
     }
 }
