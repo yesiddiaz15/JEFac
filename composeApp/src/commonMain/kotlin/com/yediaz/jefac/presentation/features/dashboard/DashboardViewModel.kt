@@ -22,6 +22,13 @@ class DashboardViewModel(
     override fun handleIntent(intent: DashboardIntent) {
         when (intent) {
             is DashboardIntent.OnLogoutClicked -> logout()
+            DashboardIntent.OnNavToAppointments -> onNavToAppointments()
+        }
+    }
+
+    private fun onNavToAppointments() {
+        viewModelScope.launch {
+            emitEffect(DashboardEffect.NavigateToAppointments)
         }
     }
 

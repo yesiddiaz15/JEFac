@@ -11,8 +11,10 @@ data class DashboardState(
 
 sealed interface DashboardIntent : UiIntent {
     data object OnLogoutClicked : DashboardIntent
+    data object OnNavToAppointments : DashboardIntent
 }
 
 sealed interface DashboardEffect : UiEffect {
     data object NavigateToLogin : DashboardEffect
+    data object NavigateToAppointments : DashboardEffect
 }

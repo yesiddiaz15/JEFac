@@ -7,3 +7,6 @@ data object Login
 
 @Serializable
 data object Dashboard
+
+@Serializable
+data object Appointment

@@ -22,19 +22,21 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel(),
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToAppointments: () -> Unit
 ) {
     BaseScreen(
         viewModel = viewModel,
         onEffect = { effect ->
             when (effect) {
                 is DashboardEffect.NavigateToLogin -> onNavigateToLogin()
+                is DashboardEffect.NavigateToAppointments -> onNavigateToAppointments()
             }
         }
     ) { state, _, onIntent ->
         DashboardContent(
             state = state,
-            onIntent = onIntent
+            onIntent = onIntent,
         )
     }
 }
@@ -42,7 +44,7 @@ fun DashboardScreen(
 @Composable
 fun DashboardContent(
     state: DashboardState,
-    onIntent: (DashboardIntent) -> Unit
+    onIntent: (DashboardIntent) -> Unit,
 ) {
     BaseUi(
         state = state,
@@ -64,8 +66,14 @@ fun DashboardContent(
                 text = "Welcome, ${state.userName}!",
                 style = MaterialTheme.typography.headlineMedium
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
+
+            Button(onClick = { onIntent(DashboardIntent.OnNavToAppointments) }) {
+                Text("Agendar Cita")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(onClick = { onIntent(DashboardIntent.OnLogoutClicked) }) {
                 Text("Logout")

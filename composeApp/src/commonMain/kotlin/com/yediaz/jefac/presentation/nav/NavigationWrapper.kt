@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.yediaz.jefac.presentation.features.appointment.AppointmentScreen
 import com.yediaz.jefac.presentation.features.dashboard.DashboardScreen
 import com.yediaz.jefac.presentation.features.login.LoginScreen
 
@@ -27,6 +28,17 @@ fun NavigationWrapper() {
                     navController.navigate(Login) {
                         popUpTo(Dashboard) { inclusive = true }
                     }
+                },
+                onNavigateToAppointments = {
+                    navController.navigate(Appointment)
+                }
+            )
+        }
+
+        composable<Appointment> {
+            AppointmentScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
