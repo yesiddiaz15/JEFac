@@ -1,6 +1,6 @@
 package com.yediaz.jefac
 
-import androidx.compose.material3.MaterialTheme
+import com.yediaz.jefac.presentation.theme.JefacTheme
 import androidx.compose.runtime.Composable
 import com.yediaz.jefac.di.dataModule
 import com.yediaz.jefac.di.domainModule
@@ -11,7 +11,7 @@ import org.koin.dsl.KoinAppDeclaration
 
 @Composable
 fun App() {
-    MaterialTheme {
+    JefacTheme {
         NavigationWrapper()
     }
 }

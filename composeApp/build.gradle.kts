@@ -69,6 +69,12 @@ kotlin {
     }
 }
 
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.yediaz.jefac.resources"
+    generateResClass = auto
+}
+
 android {
     namespace = "com.yediaz.jefac"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
