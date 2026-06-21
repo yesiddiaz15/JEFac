@@ -2,6 +2,7 @@ package com.yediaz.jefac.presentation.components.appointment
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -50,7 +52,7 @@ fun AppointmentFormBottomSheet(
     state: AppointmentState,
     onIntent: (AppointmentIntent) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = { onIntent(AppointmentIntent.OnDismissForm) },
@@ -60,7 +62,8 @@ fun AppointmentFormBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -243,15 +246,25 @@ private fun DateTimeSelector(
         ""
     }
 
-    OutlinedTextField(
-        value = displayText,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text("Fecha y hora de la cita") },
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { showDatePicker = true }
-    )
+    ) {
+        OutlinedTextField(
+            value = displayText,
+            onValueChange = {},
+            readOnly = true,
+            enabled = false,
+            label = { Text("Fecha y hora de la cita") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+    }
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
